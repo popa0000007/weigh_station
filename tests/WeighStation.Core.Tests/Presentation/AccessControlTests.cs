@@ -330,7 +330,7 @@ public class PagePermissionTests : IDisposable
         var pages = new PageViewModel[]
         {
             _app.NewWeighing(), _app.NewJournal(), _app.NewReferences(), _app.NewReports(), _app.NewDevices(), _app.NewSettings(),
-            new UsersViewModel(_app.Users, _app.Audit, _app.User, _app.Dialogs),
+            new UsersViewModel(_app.Users, _app.Audit, _app.User, _app.Dialogs), _app.NewImport(),
         };
         var byTitle = pages.ToDictionary(p => p.Title, p => p.Required);
 
@@ -341,6 +341,7 @@ public class PagePermissionTests : IDisposable
         Assert.Equal(Permission.ViewDevices, byTitle["Устройства"]);
         Assert.Equal(Permission.EditSettings, byTitle["Настройки"]);
         Assert.Equal(Permission.ManageUsers, byTitle["Пользователи"]);
+        Assert.Equal(Permission.ImportData, byTitle["Импорт"]);
     }
 }
 

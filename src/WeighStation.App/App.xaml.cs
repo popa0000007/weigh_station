@@ -3,7 +3,9 @@ using System.Windows;
 using System.Windows.Threading;
 using WeighStation.App.Services;
 using WeighStation.Core;
+using WeighStation.Core.Import;
 using WeighStation.Core.Security;
+using WeighStation.Infrastructure.Import;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Infrastructure.Simulation;
 using WeighStation.Presentation;
@@ -73,6 +75,9 @@ public partial class App : Application
             new ReferencesViewModel(vehicles, companies, cargos, drivers, dialogs, _currentUser),
             new ReportsViewModel(journal, dialogs, _currentUser, TimeProvider.System),
             new DevicesViewModel(_session, hardware, hardware, settings, _currentUser, dialogs, ui),
+            new ImportViewModel(
+                new ImportService(vehicles, companies, cargos, drivers, journal, audit, TimeProvider.System),
+                new FileTableReader(), dialogs, _currentUser, TimeProvider.System),
             new UsersViewModel(_users, audit, _currentUser, dialogs),
             new SettingsViewModel(settings, db, dialogs, _currentUser, TimeProvider.System),
         ];

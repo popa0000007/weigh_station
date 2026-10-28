@@ -1,7 +1,9 @@
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
+using WeighStation.Core.Import;
 using WeighStation.Core.Models;
 using WeighStation.Core.Security;
+using WeighStation.Infrastructure.Import;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Infrastructure.Simulation;
 using WeighStation.Presentation;
@@ -112,6 +114,9 @@ internal sealed class FlakyRepository(IWeighingRepository inner) : IWeighingRepo
     public Task CancelAsync(long id, AuditEntry entry, CancellationToken ct = default) => inner.CancelAsync(id, entry, ct);
 
     public Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(long id, CancellationToken ct = default) => inner.GetHistoryAsync(id, ct);
+
+    public Task<int> ImportAsync(IReadOnlyList<(Weighing Weighing, AuditEntry Entry)> items, IProgress<int>? progress = null, CancellationToken ct = default) =>
+        inner.ImportAsync(items, progress, ct);
 }
 
 /// <summary>The whole application wired like in production, except hardware, dialogs and clock.</summary>
@@ -170,6 +175,18 @@ internal sealed class TestApp : IDisposable
 
     public DevicesViewModel NewDevices(bool simulation = true) =>
         new(Session, Sim, simulation ? Sim : null, Settings, User, Dialogs, Ui);
+
+    public ImportService Importer => new(Vehicles, Companies, Cargos, Drivers, RealRepo, Audit, Time);
+
+    public ImportViewModel NewImport() => new(Importer, new FileTableReader(), Dialogs, User, Time);
+
+    /// <summary>Writes a UTF-8 CSV into the test directory and returns its path.</summary>
+    public string WriteCsv(string name, string content)
+    {
+        var path = Path.Combine(Dir, name);
+        File.WriteAllText(path, content, new System.Text.UTF8Encoding(true));
+        return path;
+    }
 
     public SettingsViewModel NewSettings() => new(Settings, Db, Dialogs, User, Time);
 

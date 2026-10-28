@@ -216,7 +216,7 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
         Counterparty = Company,
         Cargo = Cargo,
         Kind = IsGross ? WeighingKind.Gross : WeighingKind.Tare,
-        Operator = _user.DisplayName,
+        Operator = _user.User?.DisplayName,
     });
 
     private void OnUserChanged(object? sender, EventArgs e) => _ui.Post(() =>

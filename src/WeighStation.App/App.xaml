@@ -19,6 +19,7 @@
             <DataTemplate DataType="{x:Type pages:DevicesViewModel}"><views:DevicesView /></DataTemplate>
             <DataTemplate DataType="{x:Type pages:SettingsViewModel}"><views:SettingsView /></DataTemplate>
             <DataTemplate DataType="{x:Type security:UsersViewModel}"><views:UsersView /></DataTemplate>
+            <DataTemplate DataType="{x:Type pages:ImportViewModel}"><views:ImportView /></DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

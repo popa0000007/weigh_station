@@ -69,6 +69,53 @@ public abstract class SqliteReferenceStore<T>(SqliteDatabase db, string table, s
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task BulkSaveAsync(IReadOnlyList<T> items, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        await using var conn = await Db.OpenAsync(ct);
+        await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync(ct);
+        await using var insert = conn.CreateCommand();
+        insert.Transaction = tx;
+        insert.CommandText = $"INSERT INTO {table} ({string.Join(", ", columns)}) VALUES ({string.Join(", ", columns.Select(c => "$" + c))})";
+        await using var update = conn.CreateCommand();
+        update.Transaction = tx;
+        update.CommandText = $"UPDATE {table} SET {string.Join(", ", columns.Select(c => $"{c} = ${c}"))} WHERE id = $id";
+
+        var done = 0;
+        try
+        {
+            foreach (var raw in items)
+            {
+                var item = Normalize(raw);
+                var cmd = IdOf(item) == 0 ? insert : update;
+                cmd.Parameters.Clear();
+                var values = Values(item);
+                for (var i = 0; i < columns.Length; i++)
+                {
+                    cmd.Parameters.AddWithValue("$" + columns[i], values[i] ?? DBNull.Value);
+                }
+
+                if (cmd == update)
+                {
+                    cmd.Parameters.AddWithValue("$id", IdOf(item));
+                }
+
+                await cmd.ExecuteNonQueryAsync(ct);
+                if (++done % 500 == 0)
+                {
+                    progress?.Report(done);
+                }
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            throw new DuplicateException("Импорт отменён: в данных есть запись, которая уже существует.");
+        }
+
+        progress?.Report(done);
+    }
+
     protected abstract T Read(SqliteDataReader r);
 
     /// <summary>Values in the same order as <c>columns</c>.</summary>
