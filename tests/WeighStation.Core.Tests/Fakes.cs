@@ -1,0 +1,66 @@
+using WeighStation.Core.Abstractions;
+using WeighStation.Core.Models;
+
+namespace WeighStation.Core.Tests;
+
+internal sealed class FakeDevices : IScale, IPlateRecognizer, IPlatformIo
+{
+    private PlatformState _state;
+
+    public event EventHandler<WeightSample>? SampleReceived;
+    public event EventHandler<PlateReading>? PlateRecognized;
+    public event EventHandler<PlatformState>? StateChanged;
+
+    public PlatformState Current => _state;
+    public TrafficLight Light { get; private set; } = TrafficLight.Green;
+    public BarrierPosition Barrier { get; private set; } = BarrierPosition.Closed;
+
+    public void SetLight(TrafficLight light) => Light = light;
+    public void SetBarrier(BarrierPosition position) => Barrier = position;
+
+    public void Sensors(bool entry = false, bool onPlatform = false, bool exit = false)
+    {
+        _state = new PlatformState(entry, onPlatform, exit);
+        StateChanged?.Invoke(this, _state);
+    }
+
+    public void Plate(string plate, double confidence = 0.95, DateTimeOffset? at = null) =>
+        PlateRecognized?.Invoke(this, new PlateReading(plate, confidence, "cam1", at ?? DateTimeOffset.UnixEpoch));
+
+    public void Sample(int kg, double atSeconds, bool stable = true) =>
+        SampleReceived?.Invoke(this, new WeightSample(kg, stable, DateTimeOffset.UnixEpoch.AddSeconds(atSeconds)));
+
+    /// <summary>Feeds constant weight once per 0.5 s from <paramref name="from"/> to <paramref name="to"/> seconds.</summary>
+    public void Hold(int kg, double from, double to, bool stable = true)
+    {
+        for (var t = from; t <= to; t += 0.5)
+        {
+            Sample(kg, t, stable);
+        }
+    }
+}
+
+internal sealed class FakeRepository : IWeighingRepository, ITareProvider
+{
+    public List<Weighing> Stored { get; } = [];
+    public Dictionary<string, int> Tares { get; } = [];
+    public Exception? FailWith { get; set; }
+
+    public Task<Weighing> AddAsync(Weighing weighing, CancellationToken ct = default)
+    {
+        if (FailWith is not null)
+        {
+            throw FailWith;
+        }
+
+        var stored = weighing with { Id = Stored.Count + 1 };
+        Stored.Add(stored);
+        return Task.FromResult(stored);
+    }
+
+    public Task<IReadOnlyList<Weighing>> GetRecentAsync(int count, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Weighing>>(Stored.AsEnumerable().Reverse().Take(count).ToList());
+
+    public Task<int?> FindTareKgAsync(string plate, CancellationToken ct = default) =>
+        Task.FromResult(Tares.TryGetValue(plate, out var t) ? (int?)t : null);
+}
