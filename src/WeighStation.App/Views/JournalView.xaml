@@ -43,7 +43,7 @@
                         <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding StatusFilter}" DisplayMemberPath="Label" AutomationProperties.Name="Фильтр по статусу" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                        <Button Command="{Binding SearchCommand}" Content="Найти" Style="{StaticResource PrimaryButton}" Height="34" Padding="20,0" Margin="0,0,8,0" IsDefault="True" />
+                        <Button Command="{Binding SearchCommand}" Content="Найти" Style="{StaticResource PrimaryButton}" Height="34" Padding="20,0" Margin="0,0,8,0" />
                         <Button Command="{Binding ResetFiltersCommand}" Content="Сбросить" Height="34" />
                     </StackPanel>
                 </WrapPanel>

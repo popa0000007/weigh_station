@@ -33,7 +33,7 @@
                         <TextBlock Text="Группировка" Style="{StaticResource Caption}" Margin="0,0,0,3" />
                         <ComboBox ItemsSource="{Binding GroupingOptions}" SelectedItem="{Binding Grouping}" DisplayMemberPath="Label" AutomationProperties.Name="Группировка" />
                     </StackPanel>
-                    <Button Command="{Binding BuildCommand}" Content="Построить" Style="{StaticResource PrimaryButton}" Height="34" Padding="20,0" VerticalAlignment="Bottom" IsDefault="True" />
+                    <Button Command="{Binding BuildCommand}" Content="Построить" Style="{StaticResource PrimaryButton}" Height="34" Padding="20,0" VerticalAlignment="Bottom" />
                 </WrapPanel>
                 <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
                 <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" />
