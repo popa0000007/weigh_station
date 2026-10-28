@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -14,8 +15,8 @@ public sealed partial class SettingsViewModel : PageViewModel
     private readonly IDatabaseBackup _backup;
     private readonly IDialogService _dialogs;
     private readonly TimeProvider _time;
+    private readonly CurrentUser _user;
 
-    [ObservableProperty] private string _operatorName = "";
     [ObservableProperty] private string _minWeightKg = "";
     [ObservableProperty] private string _toleranceKg = "";
     [ObservableProperty] private string _windowSeconds = "";
@@ -28,8 +29,9 @@ public sealed partial class SettingsViewModel : PageViewModel
     [ObservableProperty] private string _errorMessage = "";
     [ObservableProperty] private string _infoMessage = "";
 
-    public SettingsViewModel(SettingsService settings, IDatabaseBackup backup, IDialogService dialogs, TimeProvider time)
+    public SettingsViewModel(SettingsService settings, IDatabaseBackup backup, IDialogService dialogs, CurrentUser user, TimeProvider time)
     {
+        _user = user;
         _settings = settings;
         _backup = backup;
         _dialogs = dialogs;
@@ -40,6 +42,8 @@ public sealed partial class SettingsViewModel : PageViewModel
     public override string Title => "Настройки";
 
     public override string IconData => "M12 8 A4 4 0 1 0 12 16 A4 4 0 1 0 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22";
+
+    public override Permission Required => Permission.EditSettings;
 
     public string DatabasePath => _backup.DatabasePath;
 
@@ -54,6 +58,12 @@ public sealed partial class SettingsViewModel : PageViewModel
     private void Save()
     {
         ErrorMessage = InfoMessage = "";
+        if (!_user.Can(Permission.EditSettings))
+        {
+            ErrorMessage = "Недостаточно прав для изменения настроек.";
+            return;
+        }
+
         var error = Validate(out var options);
         if (error is not null)
         {
@@ -63,7 +73,7 @@ public sealed partial class SettingsViewModel : PageViewModel
 
         try
         {
-            _settings.Update(_settings.Current with { OperatorName = OperatorName.Trim(), Weighing = options! });
+            _settings.Update(_settings.Current with { Weighing = options! });
             InfoMessage = "Настройки сохранены и применены.";
         }
         catch (Exception ex)
@@ -83,6 +93,12 @@ public sealed partial class SettingsViewModel : PageViewModel
     private async Task BackupAsync()
     {
         ErrorMessage = InfoMessage = "";
+        if (!_user.Can(Permission.EditSettings))
+        {
+            ErrorMessage = "Недостаточно прав для создания резервной копии.";
+            return;
+        }
+
         var path = _dialogs.PickSaveFile(
             "Резервная копия базы данных", $"weighings-{_time.GetLocalNow():yyyy-MM-dd-HHmm}.db", "База данных (*.db)|*.db");
         if (path is null)
@@ -112,7 +128,6 @@ public sealed partial class SettingsViewModel : PageViewModel
     private void Load(AppSettings s)
     {
         var w = s.Weighing;
-        OperatorName = s.OperatorName;
         MinWeightKg = w.MinWeightKg.ToString(CultureInfo.InvariantCulture);
         ToleranceKg = w.StabilityToleranceKg.ToString(CultureInfo.InvariantCulture);
         WindowSeconds = Seconds(w.StabilityWindow);

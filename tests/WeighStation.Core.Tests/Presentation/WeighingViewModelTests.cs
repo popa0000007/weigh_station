@@ -204,15 +204,8 @@ public class WeighingViewModelTests : IDisposable
 
         var stored = (await _app.RealRepo.GetRecentAsync(1)).Single();
         Assert.Equal("Север", stored.Counterparty);
-        Assert.Equal("windows-user", stored.Operator);
+        Assert.Equal("Тестов А.А.", stored.Operator);
         Assert.Equal("ab 4567 77", stored.Trailer);
-    }
-
-    [Fact]
-    public void Operator_name_from_settings_is_used_once_set()
-    {
-        _app.Settings.Update(_app.Settings.Current with { OperatorName = "Иванов А.П." });
-        Assert.Equal("Иванов А.П.", _app.Settings.OperatorName);
     }
 
     [Fact]

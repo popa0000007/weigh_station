@@ -254,7 +254,6 @@ public class InfrastructureTests : IDisposable
 
         var settings = new AppSettings
         {
-            OperatorName = "Иванов",
             Weighing = new WeighingOptions { MinWeightKg = 700, AutoCapture = true, StabilityWindow = TimeSpan.FromSeconds(3) },
             Devices = new DeviceSettings { PlcHost = "10.0.0.5" },
         };

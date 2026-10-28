@@ -1,0 +1,61 @@
+<Window x:Class="WeighStation.App.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:app="clr-namespace:WeighStation.App"
+        xmlns:vm="clr-namespace:WeighStation.Presentation.Security;assembly=WeighStation.Presentation"
+        mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:LoginViewModel}"
+        Title="АвтоВесы — вход" Width="440" SizeToContent="Height" WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="{StaticResource Window}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14">
+    <Border Style="{StaticResource Card}" Margin="20" Padding="24">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <Path Data="M3 18h18M5 18l2-9h10l2 9M9 9V6h6v3" Stroke="{StaticResource Accent}" StrokeThickness="1.8" Stretch="None" Margin="0,0,10,0"
+                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" />
+                <TextBlock Text="АвтоВесы" Style="{StaticResource H1}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Heading}" Style="{StaticResource H2}" Margin="0,8,0,0" TextWrapping="Wrap" />
+            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" Visibility="{Binding IsSetup, Converter={StaticResource BoolToVisible}}"
+                       Text="Учётных записей ещё нет. Этот пользователь получит полный доступ и сможет создать остальных." />
+            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" Visibility="{Binding IsChangePassword, Converter={StaticResource BoolToVisible}}"
+                       Text="Вам выдан временный пароль. Придумайте свой — только вы будете его знать." />
+
+            <StackPanel Visibility="{Binding ShowCredentials, Converter={StaticResource BoolToVisible}}">
+                <TextBlock Text="Логин" Style="{StaticResource FieldLabel}" />
+                <TextBox x:Name="LoginBox" Text="{Binding Login, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Логин" />
+                <StackPanel Visibility="{Binding IsSetup, Converter={StaticResource BoolToVisible}}">
+                    <TextBlock Text="Имя (как будет записываться в журнале)" Style="{StaticResource FieldLabel}" />
+                    <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Имя" />
+                </StackPanel>
+                <TextBlock Text="Пароль" Style="{StaticResource FieldLabel}" />
+                <PasswordBox app:PasswordBoxAssist.Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="34" VerticalContentAlignment="Center"
+                             AutomationProperties.Name="Пароль" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding IsChangePassword, Converter={StaticResource BoolToVisible}}">
+                <TextBlock Text="Новый пароль" Style="{StaticResource FieldLabel}" />
+                <PasswordBox app:PasswordBoxAssist.Password="{Binding NewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="34" VerticalContentAlignment="Center"
+                             AutomationProperties.Name="Новый пароль" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding ShowConfirm, Converter={StaticResource BoolToVisible}}">
+                <TextBlock Text="Повторите пароль" Style="{StaticResource FieldLabel}" />
+                <PasswordBox app:PasswordBoxAssist.Password="{Binding ConfirmPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="34" VerticalContentAlignment="Center"
+                             AutomationProperties.Name="Повторите пароль" />
+                <TextBlock Text="Не короче 8 символов, без логина внутри." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Command="{Binding SubmitCommand}" Content="{Binding SubmitText}" Style="{StaticResource PrimaryButton}" IsDefault="True" />
+                <Button Grid.Column="1" Content="Выход" Margin="8,0,0,0" IsCancel="True" Click="OnExit" />
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

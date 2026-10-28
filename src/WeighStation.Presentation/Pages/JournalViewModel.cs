@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -17,7 +18,7 @@ public sealed partial class JournalViewModel : PageViewModel
     private readonly IWeighingRepository _repository;
     private readonly IDialogService _dialogs;
     private readonly ITicketPrinter _printer;
-    private readonly SettingsService _settings;
+    private readonly CurrentUser _user;
     private readonly TimeProvider _time;
 
     private bool _loadingDetails;
@@ -62,14 +63,15 @@ public sealed partial class JournalViewModel : PageViewModel
         IWeighingRepository repository,
         IDialogService dialogs,
         ITicketPrinter printer,
-        SettingsService settings,
+        CurrentUser user,
         TimeProvider time)
     {
         _repository = repository;
         _dialogs = dialogs;
         _printer = printer;
-        _settings = settings;
+        _user = user;
         _time = time;
+        _user.Changed += (_, _) => RefreshPermissions();
 
         StatusOptions =
         [
@@ -86,6 +88,8 @@ public sealed partial class JournalViewModel : PageViewModel
 
     public override string IconData => "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3";
 
+    public override Permission Required => Permission.ViewJournal;
+
     public IReadOnlyList<StatusOption> StatusOptions { get; }
 
     public ObservableCollection<JournalRow> Rows { get; } = [];
@@ -93,6 +97,23 @@ public sealed partial class JournalViewModel : PageViewModel
     public ObservableCollection<HistoryRow> History { get; } = [];
 
     public bool HasSelection => SelectedRow is not null;
+
+    public bool CanExport => _user.Can(Permission.ExportData);
+
+    private bool CanSave => IsDirty && _user.Can(Permission.EditJournal);
+
+    private bool CanCancel => HasSelection && _user.Can(Permission.EditJournal);
+
+    /// <summary>The signed-in user changed (login, logout, role change): re-evaluate what may be edited.</summary>
+    private void RefreshPermissions()
+    {
+        CanEdit = _selected is not null && _selected.Status != WeighingStatus.Cancelled && _user.Can(Permission.EditJournal);
+        UpdateDirty();
+        OnPropertyChanged(nameof(CanExport));
+        ExportCommand.NotifyCanExecuteChanged();
+        SaveEditCommand.NotifyCanExecuteChanged();
+        CancelWeighingCommand.NotifyCanExecuteChanged();
+    }
 
     public override Task ActivateAsync() => SearchAsync();
 
@@ -127,10 +148,15 @@ public sealed partial class JournalViewModel : PageViewModel
         await SearchAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExport))]
     private void Export()
     {
         ErrorMessage = InfoMessage = "";
+        if (!CanExport)
+        {
+            return;
+        }
+
         if (Rows.Count == 0)
         {
             InfoMessage = "Нечего экспортировать: в списке нет записей.";
@@ -174,10 +200,10 @@ public sealed partial class JournalViewModel : PageViewModel
         }
     }
 
-    [RelayCommand(CanExecute = nameof(IsDirty))]
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveEditAsync()
     {
-        if (_selected is null)
+        if (_selected is null || !_user.Can(Permission.EditJournal))
         {
             return;
         }
@@ -208,7 +234,7 @@ public sealed partial class JournalViewModel : PageViewModel
         try
         {
             await _repository.UpdateDescriptionAsync(
-                edited, new AuditEntry(_time.GetLocalNow(), _settings.OperatorName, "Правка: " + string.Join("; ", changes)));
+                edited, new AuditEntry(_time.GetLocalNow(), _user.DisplayName, "Правка: " + string.Join("; ", changes)));
             InfoMessage = "Изменения сохранены.";
             await SearchAsync();
         }
@@ -218,10 +244,10 @@ public sealed partial class JournalViewModel : PageViewModel
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    [RelayCommand(CanExecute = nameof(CanCancel))]
     private async Task CancelWeighingAsync()
     {
-        if (_selected is null || _selected.Status == WeighingStatus.Cancelled)
+        if (_selected is null || _selected.Status == WeighingStatus.Cancelled || !_user.Can(Permission.EditJournal))
         {
             return;
         }
@@ -237,7 +263,7 @@ public sealed partial class JournalViewModel : PageViewModel
         try
         {
             await _repository.CancelAsync(
-                _selected.Id, new AuditEntry(_time.GetLocalNow(), _settings.OperatorName, "Запись отменена оператором"));
+                _selected.Id, new AuditEntry(_time.GetLocalNow(), _user.DisplayName, "Запись отменена оператором"));
             await SearchAsync();
         }
         catch (Exception ex)
@@ -293,7 +319,7 @@ public sealed partial class JournalViewModel : PageViewModel
             EditDriver = w.Driver ?? "";
             EditCompany = w.Counterparty ?? "";
             EditCargo = w.Cargo ?? "";
-            CanEdit = w.Status != WeighingStatus.Cancelled;
+            CanEdit = w.Status != WeighingStatus.Cancelled && _user.Can(Permission.EditJournal);
             IsDirty = false;
         }
         finally

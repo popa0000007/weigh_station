@@ -1,6 +1,7 @@
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Infrastructure.Simulation;
 using WeighStation.Presentation;
@@ -30,6 +31,9 @@ internal sealed class FakeDialogs : IDialogService
     public string? SavePath { get; set; }
     public List<string> SaveSuggestions { get; } = [];
     public List<string> OpenedFolders { get; } = [];
+    public string? OpenPath { get; set; }
+    public List<string> OpenFilters { get; } = [];
+    public int PasswordDialogs { get; private set; }
 
     public bool Confirm(string title, string message)
     {
@@ -44,6 +48,14 @@ internal sealed class FakeDialogs : IDialogService
     }
 
     public void OpenFolder(string path) => OpenedFolders.Add(path);
+
+    public string? PickOpenFile(string title, string filter)
+    {
+        OpenFilters.Add(filter);
+        return OpenPath;
+    }
+
+    public void ShowChangePassword() => PasswordDialogs++;
 }
 
 internal sealed class FakePrinter : ITicketPrinter
@@ -121,6 +133,10 @@ internal sealed class TestApp : IDisposable
     public MemorySettingsStore SettingsStore { get; } = new();
     public WeighingSession Session { get; }
     public SettingsService Settings { get; }
+    public CurrentUser User { get; } = new();
+    public SqliteUserStore UserStore { get; }
+    public SqliteAuditLog Audit { get; }
+    public UserService Users { get; }
     public ReferenceLearner Learner { get; }
     public ImmediateUi Ui { get; } = new();
 
@@ -135,23 +151,35 @@ internal sealed class TestApp : IDisposable
         Drivers = new SqliteDriverStore(Db);
         var tare = new ReferenceTareProvider(RealRepo, Vehicles);
         Session = new WeighingSession(new WeighingOptions(), Dev, Dev, Dev, Repo, tare, () => Time.Now);
-        Settings = new SettingsService(SettingsStore, Session, "windows-user");
+        Settings = new SettingsService(SettingsStore, Session);
+        UserStore = new SqliteUserStore(Db);
+        Audit = new SqliteAuditLog(Db, Time);
+        Users = new UserService(UserStore, new Pbkdf2PasswordHasher(1000), Audit, Time);
+        SignInAs(UserRole.Administrator);
         Learner = new ReferenceLearner(Vehicles, Companies, Cargos, Drivers);
     }
 
     public WeighingViewModel NewWeighing() =>
-        new(Session, Repo, Vehicles, Companies, Cargos, Drivers, Learner, Settings, Ui);
+        new(Session, Repo, Vehicles, Companies, Cargos, Drivers, Learner, User, Ui);
 
-    public JournalViewModel NewJournal() => new(Repo, Dialogs, Printer, Settings, Time);
+    public JournalViewModel NewJournal() => new(Repo, Dialogs, Printer, User, Time);
 
-    public ReferencesViewModel NewReferences() => new(Vehicles, Companies, Cargos, Drivers, Dialogs);
+    public ReferencesViewModel NewReferences() => new(Vehicles, Companies, Cargos, Drivers, Dialogs, User);
 
-    public ReportsViewModel NewReports() => new(Repo, Dialogs, Time);
+    public ReportsViewModel NewReports() => new(Repo, Dialogs, User, Time);
 
     public DevicesViewModel NewDevices(bool simulation = true) =>
-        new(Session, Sim, simulation ? Sim : null, Settings, Dialogs, Ui);
+        new(Session, Sim, simulation ? Sim : null, Settings, User, Dialogs, Ui);
 
-    public SettingsViewModel NewSettings() => new(Settings, Db, Dialogs, Time);
+    public SettingsViewModel NewSettings() => new(Settings, Db, Dialogs, User, Time);
+
+    /// <summary>Signs in a user with the given role (not stored in the database).</summary>
+    public User SignInAs(UserRole role, string name = "Тестов А.А.")
+    {
+        var user = new User { Id = 1000 + (int)role, Login = "tester", FullName = name, Role = role, CreatedAt = Time.Now };
+        User.SignIn(user);
+        return user;
+    }
 
     /// <summary>A truck stands on the platform, the camera has read its plate, the weight has settled.</summary>
     public void SettledTruck(int kg = 42780, string plate = "А123ВС197", double from = 0, double to = 3)

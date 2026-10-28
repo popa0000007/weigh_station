@@ -109,6 +109,28 @@ public sealed class SqliteDatabase : WeighStation.Core.Abstractions.IDatabaseBac
                 full_name  TEXT NOT NULL,
                 phone      TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS users (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                login           TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+                full_name       TEXT    NOT NULL,
+                role            INTEGER NOT NULL,
+                is_active       INTEGER NOT NULL,
+                must_change     INTEGER NOT NULL,
+                password_hash   TEXT    NOT NULL,
+                failed_attempts INTEGER NOT NULL,
+                locked_until    INTEGER,
+                created_at      INTEGER NOT NULL,
+                last_login_at   INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                time    INTEGER NOT NULL,
+                user    TEXT    NOT NULL,
+                action  TEXT    NOT NULL,
+                details TEXT    NOT NULL
+            );
             """;
         cmd.ExecuteNonQuery();
     }

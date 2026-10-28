@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -21,7 +22,7 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
     private readonly IReferenceStore<CargoType> _cargos;
     private readonly IReferenceStore<Driver> _drivers;
     private readonly ReferenceLearner _learner;
-    private readonly SettingsService _settings;
+    private readonly CurrentUser _user;
     private readonly IUiContext _ui;
 
     private bool _applyingSnapshot;
@@ -69,7 +70,7 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
         IReferenceStore<CargoType> cargos,
         IReferenceStore<Driver> drivers,
         ReferenceLearner learner,
-        SettingsService settings,
+        CurrentUser user,
         IUiContext ui)
     {
         _session = session;
@@ -79,18 +80,20 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
         _cargos = cargos;
         _drivers = drivers;
         _learner = learner;
-        _settings = settings;
+        _user = user;
         _ui = ui;
 
         _session.Changed += OnSessionChanged;
         _session.WeighingCaptured += OnCaptured;
-        _settings.Changed += OnSettingsChanged;
+        _user.Changed += OnUserChanged;
         Apply(_session.Snapshot);
     }
 
     public override string Title => "Взвешивание";
 
     public override string IconData => "M3 18h18M5 18l2-9h10l2 9M9 9V6h6v3";
+
+    public override Permission Required => Permission.Weigh;
 
     public ObservableCollection<JournalRow> Recent { get; } = [];
 
@@ -119,13 +122,18 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
     {
         _session.Changed -= OnSessionChanged;
         _session.WeighingCaptured -= OnCaptured;
-        _settings.Changed -= OnSettingsChanged;
+        _user.Changed -= OnUserChanged;
     }
 
     [RelayCommand(CanExecute = nameof(CanCapture))]
     private async Task CaptureAsync()
     {
         ErrorMessage = "";
+        if (!Allowed(Permission.Weigh))
+        {
+            return;
+        }
+
         try
         {
             await _session.CaptureAsync();
@@ -144,17 +152,43 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
     [RelayCommand]
     private void Cancel()
     {
+        if (!Allowed(Permission.Weigh))
+        {
+            return;
+        }
+
         ErrorMessage = "";
         _session.Cancel();
     }
 
     [RelayCommand]
-    private void OpenBarrier() => _session.TrySetBarrier(BarrierPosition.Open);
+    private void OpenBarrier()
+    {
+        if (Allowed(Permission.ControlBarrier))
+        {
+            _session.TrySetBarrier(BarrierPosition.Open);
+        }
+    }
 
     [RelayCommand]
     private void CloseBarrier()
     {
-        ErrorMessage = _session.TrySetBarrier(BarrierPosition.Closed) ? "" : "Нельзя закрыть шлагбаум: на выезде транспорт.";
+        if (Allowed(Permission.ControlBarrier))
+        {
+            ErrorMessage = _session.TrySetBarrier(BarrierPosition.Closed) ? "" : "Нельзя закрыть шлагбаум: на выезде транспорт.";
+        }
+    }
+
+    /// <summary>Commands check the permission themselves: hiding a button is not a security measure.</summary>
+    private bool Allowed(Permission permission)
+    {
+        if (_user.Can(permission))
+        {
+            return true;
+        }
+
+        ErrorMessage = "Недостаточно прав для этого действия.";
+        return false;
     }
 
     partial void OnPlateInputChanged(string value)
@@ -182,10 +216,14 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
         Counterparty = Company,
         Cargo = Cargo,
         Kind = IsGross ? WeighingKind.Gross : WeighingKind.Tare,
-        Operator = _settings.OperatorName,
+        Operator = _user.DisplayName,
     });
 
-    private void OnSettingsChanged(object? sender, EventArgs e) => _ui.Post(PushDetails);
+    private void OnUserChanged(object? sender, EventArgs e) => _ui.Post(() =>
+    {
+        PushDetails();
+        Apply(_session.Snapshot);
+    });
 
     private void OnSessionChanged(object? sender, SessionSnapshot snapshot) => _ui.Post(() => Apply(snapshot));
 
@@ -240,7 +278,7 @@ public sealed partial class WeighingViewModel : PageViewModel, IDisposable
         IsStable = s.IsStable;
         ScaleOnline = s.ScaleOnline;
         StateText = s.Message;
-        CanCapture = s.CanCapture;
+        CanCapture = s.CanCapture && _user.Can(Permission.Weigh);
         IsLightRed = s.Light == TrafficLight.Red;
         LightText = IsLightRed ? "Красный" : "Зелёный";
         BarrierText = s.Barrier == BarrierPosition.Open ? "Шлагбаум: открыт" : "Шлагбаум: закрыт";

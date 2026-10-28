@@ -149,6 +149,17 @@ internal sealed partial class XamlChecker(WpfTypes wpf)
             }
         }
 
+        if (attr.Name.NamespaceName.StartsWith("clr-namespace:", StringComparison.Ordinal))
+        {
+            // An attached property of our own (e.g. PasswordBoxAssist.Password): can't look it up, but its binding is still checked.
+            if (value.StartsWith('{') && ExtensionName(value) == "Binding")
+            {
+                ResolveBinding(el, value, ctx);
+            }
+
+            return;
+        }
+
         if (value.StartsWith('{'))
         {
             var ext = ExtensionName(value);
