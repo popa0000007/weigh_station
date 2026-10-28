@@ -43,10 +43,11 @@ internal sealed class FakeDevices : IScale, IPlateRecognizer, IPlatformIo
 internal sealed class FakeRepository : IWeighingRepository, ITareProvider
 {
     public List<Weighing> Stored { get; } = [];
+    public Dictionary<long, List<AuditEntry>> History { get; } = [];
     public Dictionary<string, int> Tares { get; } = [];
     public Exception? FailWith { get; set; }
 
-    public Task<Weighing> AddAsync(Weighing weighing, CancellationToken ct = default)
+    public Task<Weighing> AddAsync(Weighing weighing, IReadOnlyList<AuditEntry> history, CancellationToken ct = default)
     {
         if (FailWith is not null)
         {
@@ -55,11 +56,36 @@ internal sealed class FakeRepository : IWeighingRepository, ITareProvider
 
         var stored = weighing with { Id = Stored.Count + 1 };
         Stored.Add(stored);
+        History[stored.Id] = [.. history];
         return Task.FromResult(stored);
     }
 
     public Task<IReadOnlyList<Weighing>> GetRecentAsync(int count, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<Weighing>>(Stored.AsEnumerable().Reverse().Take(count).ToList());
+
+    public Task<IReadOnlyList<Weighing>> QueryAsync(WeighingQuery query, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Weighing>>(Stored.AsEnumerable().Reverse().Take(query.Limit).ToList());
+
+    public Task<Weighing?> GetAsync(long id, CancellationToken ct = default) =>
+        Task.FromResult(Stored.FirstOrDefault(w => w.Id == id));
+
+    public Task UpdateDescriptionAsync(Weighing edited, AuditEntry entry, CancellationToken ct = default)
+    {
+        Stored[Stored.FindIndex(w => w.Id == edited.Id)] = edited with { Status = WeighingStatus.ManualEdit };
+        History[edited.Id].Add(entry);
+        return Task.CompletedTask;
+    }
+
+    public Task CancelAsync(long id, AuditEntry entry, CancellationToken ct = default)
+    {
+        var i = Stored.FindIndex(w => w.Id == id);
+        Stored[i] = Stored[i] with { Status = WeighingStatus.Cancelled };
+        History[id].Add(entry);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(long id, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<AuditEntry>>(History.TryGetValue(id, out var h) ? h : []);
 
     public Task<int?> FindTareKgAsync(string plate, CancellationToken ct = default) =>
         Task.FromResult(Tares.TryGetValue(plate, out var t) ? (int?)t : null);

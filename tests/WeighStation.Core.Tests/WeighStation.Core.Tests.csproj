@@ -7,6 +7,15 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.1" />
+    <!-- Reference assemblies of WPF: lets the XAML checks look up controls and properties on any OS. Not linked into the tests. -->
+    <PackageReference Include="Microsoft.WindowsDesktop.App.Ref" Version="8.0.33" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>WpfReferencePath</_Parameter1>
+      <_Parameter2>$(PkgMicrosoft_WindowsDesktop_App_Ref)/ref/net8.0</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
@@ -14,5 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\WeighStation.Core\WeighStation.Core.csproj" />
     <ProjectReference Include="..\..\src\WeighStation.Infrastructure\WeighStation.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\WeighStation.Presentation\WeighStation.Presentation.csproj" />
   </ItemGroup>
 </Project>

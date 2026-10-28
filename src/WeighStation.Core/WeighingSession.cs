@@ -1,3 +1,4 @@
+using System.Globalization;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
 
@@ -21,6 +22,7 @@ public sealed record SessionSnapshot(
     SessionState State,
     int WeightKg,
     bool IsStable,
+    bool ScaleOnline,
     string? Plate,
     double? PlateConfidence,
     PlatformState Platform,
@@ -36,23 +38,26 @@ public sealed record SessionSnapshot(
 public sealed class WeighingSession : IDisposable
 {
     private readonly object _gate = new();
-    private readonly WeighingOptions _options;
     private readonly IScale _scale;
     private readonly IPlateRecognizer _recognizer;
     private readonly IPlatformIo _io;
     private readonly IWeighingRepository _repository;
     private readonly ITareProvider _tareProvider;
     private readonly Func<DateTimeOffset> _clock;
-    private readonly StabilityTracker _tracker;
 
+    private WeighingOptions _options;
+    private StabilityTracker _tracker;
     private SessionState _state = SessionState.Idle;
     private PlatformState _platform;
     private WeightSample _sample;
+    private DateTimeOffset? _lastSampleAt;
     private bool _stable;
     private PlateReading? _plate;
+    private DateTimeOffset? _plateAt;
     private string? _manualPlate;
     private WeighingDetails _details = new();
     private DateTimeOffset? _readySince;
+    private DateTimeOffset? _readyAt;
     private bool _capturing;
     private bool _autoCaptureQueued;
 
@@ -96,7 +101,18 @@ public sealed class WeighingSession : IDisposable
         {
             lock (_gate)
             {
-                return BuildSnapshot("");
+                return BuildSnapshot(DescribeState());
+            }
+        }
+    }
+
+    public WeighingOptions Options
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _options;
             }
         }
     }
@@ -108,19 +124,36 @@ public sealed class WeighingSession : IDisposable
         _io.StateChanged -= OnPlatformChanged;
     }
 
-    /// <summary>Overrides the recognised plate (operator typed it). Null or empty reverts to the camera.</summary>
+    /// <summary>Applies new settings; takes effect for the next evaluation (a running cycle is not restarted).</summary>
+    public void UpdateOptions(WeighingOptions options) => Mutate(() =>
+    {
+        _options = options;
+        _tracker = new StabilityTracker(options.StabilityToleranceKg, options.StabilityWindow);
+        _stable = false;
+    });
+
+    /// <summary>
+    /// Call periodically (about once a second). Without it a silent scale would leave the last
+    /// "stable" verdict standing, because the session only reacts to incoming events.
+    /// </summary>
+    public void Tick() => Mutate(() => { });
+
+    /// <summary>Overrides the recognised plate (operator typed it). Empty reverts to the camera.</summary>
     public void SetManualPlate(string? plate)
     {
-        Mutate(() => _manualPlate = string.IsNullOrWhiteSpace(plate) ? null : plate.Trim().ToUpperInvariant());
+        var normalized = PlateNumber.Normalize(plate);
+        Mutate(() => _manualPlate = normalized.Length == 0 ? null : normalized);
     }
 
     public void SetDetails(WeighingDetails details) => Mutate(() => _details = details);
 
     /// <summary>Records the current stable weight, opens the barrier and lets the vehicle go.</summary>
-    public async Task<Weighing> CaptureAsync(CancellationToken ct = default)
+    public Task<Weighing> CaptureAsync(CancellationToken ct = default) => CaptureCoreAsync(automatic: false, ct);
+
+    private async Task<Weighing> CaptureCoreAsync(bool automatic, CancellationToken ct)
     {
         Weighing draft;
-        WeighingDetails details;
+        var history = new List<AuditEntry>();
         lock (_gate)
         {
             if (_state != SessionState.ReadyToCapture || _capturing)
@@ -129,21 +162,31 @@ public sealed class WeighingSession : IDisposable
             }
 
             _capturing = true;
-            details = _details;
+            var details = _details;
+            var user = details.Operator ?? "";
             draft = new Weighing
             {
                 Time = _clock(),
                 Plate = EffectivePlate!,
-                Trailer = details.Trailer,
-                Driver = details.Driver,
-                Counterparty = details.Counterparty,
-                Cargo = details.Cargo,
+                Trailer = Empty(details.Trailer),
+                Driver = Empty(details.Driver),
+                Counterparty = Empty(details.Counterparty),
+                Cargo = Empty(details.Cargo),
                 Kind = details.Kind,
                 Operator = details.Operator,
                 Status = _manualPlate is null ? WeighingStatus.Completed : WeighingStatus.ManualEdit,
+                GrossKg = details.Kind == WeighingKind.Gross ? _sample.Kg : null,
+                TareKg = details.Kind == WeighingKind.Tare ? _sample.Kg : null,
             };
-            draft = draft with { GrossKg = details.Kind == WeighingKind.Gross ? _sample.Kg : null };
-            draft = draft with { TareKg = details.Kind == WeighingKind.Tare ? _sample.Kg : null };
+
+            history.Add(_manualPlate is not null
+                ? new AuditEntry(_plateAt ?? _clock(), user, $"Номер введён вручную: {PlateNumber.Format(_manualPlate)}")
+                : new AuditEntry(_plateAt ?? _clock(), user,
+                    $"Номер распознан: {PlateNumber.Format(_plate!.Value.Plate)} ({Math.Round(_plate.Value.Confidence * 100)}%, {_plate.Value.Camera})"));
+            history.Add(new AuditEntry(_readyAt ?? _clock(), user,
+                $"Вес стабилен: {_sample.Kg.ToString("N0", CultureInfo.GetCultureInfo("ru-RU"))} кг"));
+            history.Add(new AuditEntry(_clock(), user,
+                automatic ? "Вес зафиксирован автоматически" : "Вес зафиксирован оператором"));
         }
 
         Weighing stored;
@@ -155,7 +198,7 @@ public sealed class WeighingSession : IDisposable
                 draft = draft with { TareKg = tare, NetKg = tare is null ? null : draft.GrossKg - tare };
             }
 
-            stored = await _repository.AddAsync(draft, ct).ConfigureAwait(false);
+            stored = await _repository.AddAsync(draft, history, ct).ConfigureAwait(false);
         }
         catch
         {
@@ -219,9 +262,20 @@ public sealed class WeighingSession : IDisposable
 
     private string? EffectivePlate => _manualPlate ?? _plate?.Plate;
 
+    private static string? Empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private bool ScaleOnline => _lastSampleAt is { } at && _clock() - at <= _options.ScaleTimeout;
+
     private void OnSample(object? sender, WeightSample sample) => Mutate(() =>
     {
+        // After a gap the old readings say nothing about the weight now: start the stability window over.
+        if (_lastSampleAt is not null && !ScaleOnline)
+        {
+            _tracker.Reset();
+        }
+
         _sample = sample;
+        _lastSampleAt = _clock();
         var settled = _tracker.Add(sample);
         _stable = settled && (!_options.RequireTerminalStable || sample.IsStable);
     });
@@ -235,7 +289,8 @@ public sealed class WeighingSession : IDisposable
 
         if (_plate is null || reading.Confidence >= _plate.Value.Confidence)
         {
-            _plate = reading;
+            _plate = reading with { Plate = PlateNumber.Normalize(reading.Plate) };
+            _plateAt = _clock();
         }
     });
 
@@ -300,13 +355,14 @@ public sealed class WeighingSession : IDisposable
                 {
                     _io.SetLight(TrafficLight.Green);
                     _state = SessionState.Entering;
-                    break;
+                    goto case SessionState.Entering;
                 }
 
                 if (CanCaptureNow())
                 {
                     _state = SessionState.ReadyToCapture;
                     _readySince = _sample.Timestamp;
+                    _readyAt = _clock();
                 }
 
                 break;
@@ -317,6 +373,8 @@ public sealed class WeighingSession : IDisposable
                     _io.SetLight(TrafficLight.Green);
                     _state = SessionState.Entering;
                     _readySince = null;
+                    // Nothing left at the entry either? Then the vehicle is gone and the cycle is over.
+                    goto case SessionState.Entering;
                 }
                 else if (!CanCaptureNow())
                 {
@@ -350,11 +408,15 @@ public sealed class WeighingSession : IDisposable
     {
         try
         {
-            await CaptureAsync().ConfigureAwait(false);
+            await CaptureCoreAsync(automatic: true, CancellationToken.None).ConfigureAwait(false);
         }
         catch (InvalidOperationException)
         {
             // State changed between scheduling and running; the next evaluation will retry.
+        }
+        catch
+        {
+            // Storage failure: stay in ReadyToCapture, the operator sees the error when capturing by hand.
         }
         finally
         {
@@ -369,6 +431,7 @@ public sealed class WeighingSession : IDisposable
 
     private bool CanCaptureNow() =>
         _stable
+        && ScaleOnline
         && _sample.Kg >= _options.MinWeightKg
         && (!_options.RequirePlate || EffectivePlate is not null);
 
@@ -377,8 +440,10 @@ public sealed class WeighingSession : IDisposable
     {
         _state = SessionState.Idle;
         _plate = null;
+        _plateAt = null;
         _manualPlate = null;
         _readySince = null;
+        _readyAt = null;
         _stable = false;
         _tracker.Reset();
         _io.SetLight(TrafficLight.Green);
@@ -387,7 +452,8 @@ public sealed class WeighingSession : IDisposable
     private SessionSnapshot BuildSnapshot(string message) => new(
         _state,
         _sample.Kg,
-        _stable,
+        _stable && ScaleOnline,
+        ScaleOnline,
         EffectivePlate,
         _manualPlate is null ? _plate?.Confidence : null,
         _platform,
@@ -396,14 +462,22 @@ public sealed class WeighingSession : IDisposable
         _state == SessionState.ReadyToCapture && !_capturing,
         message);
 
-    private string DescribeState() => _state switch
+    private string DescribeState()
     {
-        SessionState.Idle => "Платформа свободна",
-        SessionState.Entering => "Заезд на платформу",
-        SessionState.Weighing when EffectivePlate is null => "Ожидание распознавания номера",
-        SessionState.Weighing => "Ожидание стабильного веса",
-        SessionState.ReadyToCapture => "Вес стабилен — можно фиксировать",
-        SessionState.Exiting => "Вес записан, выезд свободен",
-        _ => "",
-    };
+        if (!ScaleOnline && _state is SessionState.Weighing or SessionState.ReadyToCapture or SessionState.Entering)
+        {
+            return "Нет данных от весов";
+        }
+
+        return _state switch
+        {
+            SessionState.Idle => "Платформа свободна",
+            SessionState.Entering => "Заезд на платформу",
+            SessionState.Weighing when EffectivePlate is null => "Ожидание распознавания номера",
+            SessionState.Weighing => "Ожидание стабильного веса",
+            SessionState.ReadyToCapture => "Вес стабилен — можно фиксировать",
+            SessionState.Exiting => "Вес записан, выезд свободен",
+            _ => "",
+        };
+    }
 }

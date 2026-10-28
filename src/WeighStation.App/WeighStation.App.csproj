@@ -7,10 +7,8 @@
     <RootNamespace>WeighStation.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\WeighStation.Core\WeighStation.Core.csproj" />
+    <ProjectReference Include="..\WeighStation.Presentation\WeighStation.Presentation.csproj" />
     <ProjectReference Include="..\WeighStation.Infrastructure\WeighStation.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

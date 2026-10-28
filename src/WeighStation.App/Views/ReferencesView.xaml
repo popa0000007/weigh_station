@@ -1,0 +1,214 @@
+<UserControl x:Class="WeighStation.App.Views.ReferencesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:WeighStation.Presentation.Pages;assembly=WeighStation.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:ReferencesViewModel}"
+             d:DesignWidth="1300" d:DesignHeight="800">
+    <UserControl.Resources>
+        <!-- Shared pieces of the four editors -->
+        <Style x:Key="ListColumn" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Margin" Value="0,0,16,0" />
+        </Style>
+
+        <!-- Vehicles -->
+        <DataTemplate DataType="{x:Type vm:VehiclesEditorViewModel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" MinWidth="300" />
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource ListColumn}">
+                    <DockPanel>
+                        <TextBox DockPanel.Dock="Top" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" AutomationProperties.Name="Поиск по транспорту" />
+                        <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" AutomationProperties.Name="Список транспорта">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Госномер" Binding="{Binding Plate}" Width="120" />
+                                <DataGridTextColumn Header="Контрагент" Binding="{Binding Company}" Width="*" />
+                                <DataGridTextColumn Header="Водитель" Binding="{Binding Driver}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" Margin="0,0,0,8" />
+                            <UniformGrid Columns="3">
+                                <Button Command="{Binding SaveCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Height="36" Margin="0,0,4,0" />
+                                <Button Command="{Binding NewCommand}" Content="Новый" Margin="4,0" />
+                                <Button Command="{Binding DeleteCommand}" Content="Удалить" Margin="4,0,0,0" />
+                            </UniformGrid>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,6,0">
+                                <TextBlock Text="Транспорт" Style="{StaticResource H2}" />
+                                <TextBlock Text="Госномер тягача" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Plate, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" FontWeight="Bold" AutomationProperties.Name="Госномер" />
+                                <TextBlock Text="Прицеп" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Trailer, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Прицеп" />
+                                <TextBlock Text="Водитель по умолчанию" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Driver, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Водитель" />
+                                <TextBlock Text="Контрагент по умолчанию" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Company, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Контрагент" />
+                                <TextBlock Text="Груз по умолчанию" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Cargo, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Груз" />
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="0,0,6,0">
+                                        <TextBlock Text="Тара, кг (если не взвешивался порожним)" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding TareKg, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Тара" />
+                                    </StackPanel>
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="Допустимая масса, кг" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding MaxMassKg, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Допустимая масса" />
+                                    </StackPanel>
+                                </UniformGrid>
+                                <TextBlock Text="Заметка" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Заметка" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Companies -->
+        <DataTemplate DataType="{x:Type vm:CompaniesEditorViewModel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" MinWidth="300" />
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource ListColumn}">
+                    <DockPanel>
+                        <TextBox DockPanel.Dock="Top" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" AutomationProperties.Name="Поиск по контрагентам" />
+                        <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" AutomationProperties.Name="Список контрагентов">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="ИНН" Binding="{Binding Inn}" Width="120" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" Margin="0,0,0,8" />
+                            <UniformGrid Columns="3">
+                                <Button Command="{Binding SaveCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Height="36" Margin="0,0,4,0" />
+                                <Button Command="{Binding NewCommand}" Content="Новый" Margin="4,0" />
+                                <Button Command="{Binding DeleteCommand}" Content="Удалить" Margin="4,0,0,0" />
+                            </UniformGrid>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Контрагент" Style="{StaticResource H2}" />
+                            <TextBlock Text="Название" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Название" />
+                            <TextBlock Text="ИНН" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Inn, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="ИНН" />
+                            <TextBlock Text="Заметка" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Заметка" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Cargo types -->
+        <DataTemplate DataType="{x:Type vm:CargosEditorViewModel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" MinWidth="300" />
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource ListColumn}">
+                    <DockPanel>
+                        <TextBox DockPanel.Dock="Top" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" AutomationProperties.Name="Поиск по грузам" />
+                        <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" AutomationProperties.Name="Список грузов">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" Margin="0,0,0,8" />
+                            <UniformGrid Columns="3">
+                                <Button Command="{Binding SaveCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Height="36" Margin="0,0,4,0" />
+                                <Button Command="{Binding NewCommand}" Content="Новый" Margin="4,0" />
+                                <Button Command="{Binding DeleteCommand}" Content="Удалить" Margin="4,0,0,0" />
+                            </UniformGrid>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Груз" Style="{StaticResource H2}" />
+                            <TextBlock Text="Название" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Название" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Drivers -->
+        <DataTemplate DataType="{x:Type vm:DriversEditorViewModel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" MinWidth="300" />
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource ListColumn}">
+                    <DockPanel>
+                        <TextBox DockPanel.Dock="Top" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" AutomationProperties.Name="Поиск по водителям" />
+                        <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" AutomationProperties.Name="Список водителей">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ФИО" Binding="{Binding FullName}" Width="*" />
+                                <DataGridTextColumn Header="Телефон" Binding="{Binding Phone}" Width="160" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" Margin="0,0,0,8" />
+                            <UniformGrid Columns="3">
+                                <Button Command="{Binding SaveCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Height="36" Margin="0,0,4,0" />
+                                <Button Command="{Binding NewCommand}" Content="Новый" Margin="4,0" />
+                                <Button Command="{Binding DeleteCommand}" Content="Удалить" Margin="4,0,0,0" />
+                            </UniformGrid>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Водитель" Style="{StaticResource H2}" />
+                            <TextBlock Text="ФИО" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="ФИО" />
+                            <TextBlock Text="Телефон" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Телефон" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Справочники" Style="{StaticResource H1}" Margin="0,0,0,12" />
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0,1,0,0" BorderBrush="{StaticResource Line}">
+            <TabItem Header="Транспорт"><ContentControl Content="{Binding Vehicles}" Margin="0,16,0,0" /></TabItem>
+            <TabItem Header="Контрагенты"><ContentControl Content="{Binding Companies}" Margin="0,16,0,0" /></TabItem>
+            <TabItem Header="Грузы"><ContentControl Content="{Binding Cargos}" Margin="0,16,0,0" /></TabItem>
+            <TabItem Header="Водители"><ContentControl Content="{Binding Drivers}" Margin="0,16,0,0" /></TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>
