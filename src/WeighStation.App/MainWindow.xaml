@@ -49,9 +49,12 @@
         <!-- Status bar -->
         <Border Grid.Row="1" Background="{StaticResource Rail}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="16,6">
             <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Right" Text="{Binding ClockText}" Style="{StaticResource Mono}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
-                <TextBlock DockPanel.Dock="Right" Text="{Binding OperatorName, StringFormat='Оператор: {0}'}" Foreground="{StaticResource Muted}"
-                           VerticalAlignment="Center" Margin="0,0,24,0" />
+                <TextBlock DockPanel.Dock="Right" Text="{Binding ClockText}" Style="{StaticResource Mono}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,24,0" />
+                <Button DockPanel.Dock="Right" Command="{Binding LogoutCommand}" Content="Выйти" Height="26" Padding="12,0" FontSize="12" Margin="0,0,16,0"
+                        AutomationProperties.Name="Выйти из программы" />
+                <Button DockPanel.Dock="Right" Command="{Binding ChangePasswordCommand}" Content="Сменить пароль" Height="26" Padding="12,0" FontSize="12" Margin="0,0,8,0" />
+                <TextBlock DockPanel.Dock="Right" Text="{Binding UserText}" Foreground="{StaticResource Text}" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="0,0,16,0" />
                 <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding DeviceChips}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>

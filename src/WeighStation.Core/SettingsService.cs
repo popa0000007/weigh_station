@@ -10,21 +10,16 @@ public sealed class SettingsService
 {
     private readonly ISettingsStore _store;
     private readonly WeighingSession _session;
-    private readonly string _defaultOperator;
 
-    public SettingsService(ISettingsStore store, WeighingSession session, string defaultOperator)
+    public SettingsService(ISettingsStore store, WeighingSession session)
     {
         _store = store;
         _session = session;
-        _defaultOperator = defaultOperator;
         Current = store.Load();
         session.UpdateOptions(Current.Weighing);
     }
 
     public AppSettings Current { get; private set; }
-
-    /// <summary>The name written into the history of each weighing.</summary>
-    public string OperatorName => string.IsNullOrWhiteSpace(Current.OperatorName) ? _defaultOperator : Current.OperatorName.Trim();
 
     public event EventHandler? Changed;
 

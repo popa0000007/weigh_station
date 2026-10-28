@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -17,6 +18,7 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
 {
     private readonly IReferenceStore<T> _store;
     private readonly IDialogService _dialogs;
+    private readonly CurrentUser _user;
     private List<T> _all = [];
 
     [ObservableProperty] private string _search = "";
@@ -27,11 +29,16 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     private T? _selectedItem;
 
-    protected ReferenceEditorViewModel(IReferenceStore<T> store, IDialogService dialogs)
+    protected ReferenceEditorViewModel(IReferenceStore<T> store, IDialogService dialogs, CurrentUser user)
     {
         _store = store;
         _dialogs = dialogs;
+        _user = user;
+        _user.Changed += (_, _) => RefreshPermissions();
     }
+
+    /// <summary>The form is read-only for users who may look at the books but not change them.</summary>
+    public bool CanModify => _user.Can(Permission.EditReferences);
 
     public abstract string Title { get; }
 
@@ -65,7 +72,7 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanModify))]
     private void New()
     {
         ErrorMessage = InfoMessage = "";
@@ -74,10 +81,16 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
         OnPropertyChanged(nameof(IsNew));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanModify))]
     private async Task SaveAsync()
     {
         ErrorMessage = InfoMessage = "";
+        if (!CanModify)
+        {
+            ErrorMessage = "Недостаточно прав для изменения справочников.";
+            return;
+        }
+
         var id = SelectedItem is null ? 0 : IdOf(SelectedItem);
         var (item, error) = ReadForm(id);
         if (item is null)
@@ -107,7 +120,7 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
     [RelayCommand(CanExecute = nameof(CanDelete))]
     private async Task DeleteAsync()
     {
-        if (SelectedItem is null || !_dialogs.Confirm("Удаление", DeleteQuestion(SelectedItem)))
+        if (SelectedItem is null || !CanModify || !_dialogs.Confirm("Удаление", DeleteQuestion(SelectedItem)))
         {
             return;
         }
@@ -127,7 +140,15 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
         }
     }
 
-    private bool CanDelete() => SelectedItem is not null;
+    private bool CanDelete() => SelectedItem is not null && CanModify;
+
+    private void RefreshPermissions()
+    {
+        OnPropertyChanged(nameof(CanModify));
+        NewCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
 
     partial void OnSearchChanged(string value) => ApplyFilter();
 
@@ -176,8 +197,8 @@ public abstract partial class ReferenceEditorViewModel<T> : ObservableObject whe
     }
 }
 
-public sealed partial class VehiclesEditorViewModel(IVehicleStore store, IDialogService dialogs)
-    : ReferenceEditorViewModel<Vehicle>(store, dialogs)
+public sealed partial class VehiclesEditorViewModel(IVehicleStore store, IDialogService dialogs, CurrentUser user)
+    : ReferenceEditorViewModel<Vehicle>(store, dialogs, user)
 {
     [ObservableProperty] private string _plate = "";
     [ObservableProperty] private string _trailer = "";
@@ -240,8 +261,8 @@ public sealed partial class VehiclesEditorViewModel(IVehicleStore store, IDialog
     }
 }
 
-public sealed partial class CompaniesEditorViewModel(IReferenceStore<Company> store, IDialogService dialogs)
-    : ReferenceEditorViewModel<Company>(store, dialogs)
+public sealed partial class CompaniesEditorViewModel(IReferenceStore<Company> store, IDialogService dialogs, CurrentUser user)
+    : ReferenceEditorViewModel<Company>(store, dialogs, user)
 {
     [ObservableProperty] private string _name = "";
     [ObservableProperty] private string _inn = "";
@@ -268,8 +289,8 @@ public sealed partial class CompaniesEditorViewModel(IReferenceStore<Company> st
             : (new Company { Id = id, Name = Name.Trim(), Inn = Blank(Inn), Note = Blank(Note) }, null);
 }
 
-public sealed partial class CargosEditorViewModel(IReferenceStore<CargoType> store, IDialogService dialogs)
-    : ReferenceEditorViewModel<CargoType>(store, dialogs)
+public sealed partial class CargosEditorViewModel(IReferenceStore<CargoType> store, IDialogService dialogs, CurrentUser user)
+    : ReferenceEditorViewModel<CargoType>(store, dialogs, user)
 {
     [ObservableProperty] private string _name = "";
 
@@ -287,8 +308,8 @@ public sealed partial class CargosEditorViewModel(IReferenceStore<CargoType> sto
         string.IsNullOrWhiteSpace(Name) ? (null, "Укажите название.") : (new CargoType { Id = id, Name = Name.Trim() }, null);
 }
 
-public sealed partial class DriversEditorViewModel(IReferenceStore<Driver> store, IDialogService dialogs)
-    : ReferenceEditorViewModel<Driver>(store, dialogs)
+public sealed partial class DriversEditorViewModel(IReferenceStore<Driver> store, IDialogService dialogs, CurrentUser user)
+    : ReferenceEditorViewModel<Driver>(store, dialogs, user)
 {
     [ObservableProperty] private string _fullName = "";
     [ObservableProperty] private string _phone = "";
@@ -321,17 +342,20 @@ public sealed class ReferencesViewModel : PageViewModel
         IReferenceStore<Company> companies,
         IReferenceStore<CargoType> cargos,
         IReferenceStore<Driver> drivers,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        CurrentUser user)
     {
-        Vehicles = new VehiclesEditorViewModel(vehicles, dialogs);
-        Companies = new CompaniesEditorViewModel(companies, dialogs);
-        Cargos = new CargosEditorViewModel(cargos, dialogs);
-        Drivers = new DriversEditorViewModel(drivers, dialogs);
+        Vehicles = new VehiclesEditorViewModel(vehicles, dialogs, user);
+        Companies = new CompaniesEditorViewModel(companies, dialogs, user);
+        Cargos = new CargosEditorViewModel(cargos, dialogs, user);
+        Drivers = new DriversEditorViewModel(drivers, dialogs, user);
     }
 
     public override string Title => "Справочники";
 
     public override string IconData => "M4 5h16M4 12h16M4 19h16";
+
+    public override Permission Required => Permission.ViewReferences;
 
     public VehiclesEditorViewModel Vehicles { get; }
 

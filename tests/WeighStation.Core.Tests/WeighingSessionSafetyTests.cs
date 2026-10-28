@@ -167,3 +167,27 @@ public class WeighingSessionSafetyTests
         session.Dispose();
     }
 }
+
+public class UnattendedCaptureTests
+{
+    [Fact]
+    public async Task Automatic_capture_without_an_operator_is_attributed_to_the_automatic_mode()
+    {
+        var dev = new FakeDevices();
+        var repo = new FakeRepository();
+        var now = DateTimeOffset.UnixEpoch;
+        using var session = new WeighingSession(
+            new WeighingOptions { AutoCapture = true, AutoCaptureDelay = TimeSpan.FromSeconds(3) }, dev, dev, dev, repo, repo, () => now);
+        dev.Sensors(onPlatform: true);
+        dev.Plate("А123ВС197");
+        dev.Hold(42780, 0, 10);
+
+        for (var i = 0; i < 100 && repo.Stored.Count == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.All(repo.History[1], h => Assert.Equal("Автомат", h.User));
+        Assert.Null(repo.Stored[0].Operator);
+    }
+}

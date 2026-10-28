@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Infrastructure.Simulation;
 using WeighStation.Presentation;
@@ -82,13 +83,17 @@ public class EndToEndTests : IDisposable
         using var session = new WeighingSession(
             new WeighingOptions { StabilityWindow = TimeSpan.FromSeconds(1) }, hardware, hardware, hardware, journal,
             new ReferenceTareProvider(journal, vehicles));
-        var settings = new SettingsService(new MemorySettingsStore(), session, "operator");
+        var settings = new SettingsService(new MemorySettingsStore(), session);
+        var user = new CurrentUser();
+        user.SignIn(new User { Id = 1, Login = "op", FullName = "Менеджер", Role = UserRole.Manager });
         var dialogs = new FakeDialogs();
 
         var weighing = ui.Invoke(() => new WeighingViewModel(
-            session, journal, vehicles, companies, cargos, drivers, new ReferenceLearner(vehicles, companies, cargos, drivers), settings, ui));
+            session, journal, vehicles, companies, cargos, drivers, new ReferenceLearner(vehicles, companies, cargos, drivers), user, ui));
+        var audit = new SqliteAuditLog(db, TimeProvider.System);
+        var userService = new UserService(new SqliteUserStore(db), new Pbkdf2PasswordHasher(1000), audit, TimeProvider.System);
         var shell = ui.Invoke(() => new ShellViewModel(
-            [weighing], session, hardware, settings, TimeProvider.System, ui));
+            [weighing], session, hardware, user, userService, dialogs, TimeProvider.System, ui));
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var run = hardware.RunAsync(cts.Token);
@@ -139,7 +144,7 @@ public class EndToEndTests : IDisposable
         Assert.True((await vehicles.GetAllAsync()).Count >= 4);
 
         // Reports agree with the journal.
-        var reports = new ReportsViewModel(journal, dialogs, TimeProvider.System);
+        var reports = new ReportsViewModel(journal, dialogs, user, TimeProvider.System);
         reports.DateFrom = DateTime.Today.AddDays(-1);
         reports.DateTo = DateTime.Today.AddDays(1);
         await reports.BuildCommand.ExecuteAsync(null);
@@ -147,7 +152,7 @@ public class EndToEndTests : IDisposable
         Assert.NotEqual("", reports.Warning);
 
         // Journal page shows the same rows and can export them.
-        var page = new JournalViewModel(journal, dialogs, new FakePrinter(), settings, TimeProvider.System);
+        var page = new JournalViewModel(journal, dialogs, new FakePrinter(), user, TimeProvider.System);
         await page.ActivateAsync();
         Assert.Equal(rows.Count, page.Rows.Count);
         dialogs.SavePath = Path.Combine(_dir, "journal.csv");

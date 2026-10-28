@@ -17,6 +17,12 @@ public interface IDialogService
     string? PickSaveFile(string title, string suggestedFileName, string filter);
 
     void OpenFolder(string path);
+
+    /// <summary>Returns the chosen path, or null if the user cancelled. <paramref name="filter"/> is the Windows "Name|*.ext" form.</summary>
+    string? PickOpenFile(string title, string filter);
+
+    /// <summary>Lets the signed-in user change their own password (modal).</summary>
+    void ShowChangePassword();
 }
 
 public interface ITicketPrinter

@@ -138,7 +138,7 @@ public class JournalViewModelTests : IDisposable
         Assert.Equal(WeighingStatus.ManualEdit, after.Status);
         var history = await _app.RealRepo.GetHistoryAsync(w.Id);
         Assert.Equal("Правка: Водитель: «» → «Петров»; Контрагент: «Старый» → «Новый»", history[^1].Text);
-        Assert.Equal("windows-user", history[^1].User);
+        Assert.Equal("Тестов А.А.", history[^1].User);
         Assert.Equal("Изменения сохранены.", _vm.InfoMessage);
         Assert.False(_vm.IsDirty);
         Assert.Equal("Ручная правка", _vm.Rows[0].Status);

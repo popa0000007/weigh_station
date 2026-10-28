@@ -1,4 +1,5 @@
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Presentation;
 using WeighStation.Presentation.Pages;
@@ -283,7 +284,6 @@ public class SettingsViewModelTests : IDisposable
         _vm.MinConfidencePercent = "90";
         _vm.AutoCapture = true;
         _vm.AutoCaptureSeconds = "10";
-        _vm.OperatorName = " Иванов А.П. ";
 
         _vm.SaveCommand.Execute(null);
 
@@ -295,7 +295,6 @@ public class SettingsViewModelTests : IDisposable
         Assert.Equal(0.9, o.MinPlateConfidence, 3);
         Assert.True(o.AutoCapture);
         Assert.Equal(TimeSpan.FromSeconds(10), o.AutoCaptureDelay);
-        Assert.Equal("Иванов А.П.", _app.Settings.OperatorName);
         Assert.Equal(o, _app.SettingsStore.Saved.Weighing);
     }
 
@@ -395,6 +394,7 @@ public class ShellViewModelTests : IDisposable
         public int Activations { get; private set; }
         public override string Title => title;
         public override string IconData => "M0 0";
+        public override Permission Required => Permission.Weigh;
 
         public override Task ActivateAsync()
         {
@@ -404,7 +404,7 @@ public class ShellViewModelTests : IDisposable
     }
 
     private ShellViewModel Shell(params PageViewModel[] pages) =>
-        new(pages, _app.Session, _app.Sim, _app.Settings, _app.Time, _app.Ui);
+        new(pages, _app.Session, _app.Sim, _app.User, _app.Users, _app.Dialogs, _app.Time, _app.Ui);
 
     [Fact]
     public async Task First_page_is_selected_and_activated_on_start_then_each_switch_activates_the_new_page()
@@ -455,15 +455,6 @@ public class ShellViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Operator_name_follows_the_settings()
-    {
-        using var shell = Shell(new SpyPage("A"));
-        Assert.Equal("windows-user", shell.OperatorName);
-        _app.Settings.Update(_app.Settings.Current with { OperatorName = "Иванов" });
-        Assert.Equal("Иванов", shell.OperatorName);
-    }
-
-    [Fact]
     public async Task A_page_that_throws_on_activation_does_not_break_the_shell()
     {
         var bad = new ThrowingPage();
@@ -477,6 +468,7 @@ public class ShellViewModelTests : IDisposable
     {
         public override string Title => "Bad";
         public override string IconData => "M0 0";
+        public override Permission Required => Permission.Weigh;
         public override Task ActivateAsync() => throw new InvalidOperationException("boom");
     }
 }

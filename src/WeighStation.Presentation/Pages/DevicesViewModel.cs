@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
 using WeighStation.Core.Models;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -20,6 +21,7 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
     private readonly IDeviceMonitor _monitor;
     private readonly ISimulationControl? _simulation;
     private readonly SettingsService _settings;
+    private readonly CurrentUser _user;
     private readonly IDialogService _dialogs;
     private readonly IUiContext _ui;
     private bool _syncingSimulation;
@@ -56,6 +58,7 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
         IDeviceMonitor monitor,
         ISimulationControl? simulation,
         SettingsService settings,
+        CurrentUser user,
         IDialogService dialogs,
         IUiContext ui)
     {
@@ -63,11 +66,13 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
         _monitor = monitor;
         _simulation = simulation;
         _settings = settings;
+        _user = user;
         _dialogs = dialogs;
         _ui = ui;
 
         _session.Changed += OnSessionChanged;
         _monitor.StatusChanged += OnStatusChanged;
+        _user.Changed += OnUserChanged;
         if (_simulation is not null)
         {
             _simulation.Changed += OnSimulationChanged;
@@ -82,6 +87,13 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
     public override string Title => "Устройства";
 
     public override string IconData => "M4 6h16v10H4zM8 20h8M12 16v4";
+
+    public override Permission Required => Permission.ViewDevices;
+
+    public bool CanControlBarrier => _user.Can(Permission.ControlBarrier);
+
+    /// <summary>Connection parameters and simulator switches are for administrators only.</summary>
+    public bool CanEditDevices => _user.Can(Permission.EditDevices);
 
     public ObservableCollection<DeviceRow> Devices { get; } = [];
 
@@ -98,35 +110,42 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
     {
         _session.Changed -= OnSessionChanged;
         _monitor.StatusChanged -= OnStatusChanged;
+        _user.Changed -= OnUserChanged;
         if (_simulation is not null)
         {
             _simulation.Changed -= OnSimulationChanged;
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanControlBarrier))]
     private void OpenBarrier()
     {
-        if (_dialogs.Confirm("Шлагбаум", "Открыть шлагбаум вручную?"))
+        if (CanControlBarrier && _dialogs.Confirm("Шлагбаум", "Открыть шлагбаум вручную?"))
         {
             _session.TrySetBarrier(BarrierPosition.Open);
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanControlBarrier))]
     private void CloseBarrier()
     {
         ErrorMessage = "";
-        if (!_session.TrySetBarrier(BarrierPosition.Closed))
+        if (CanControlBarrier && !_session.TrySetBarrier(BarrierPosition.Closed))
         {
             ErrorMessage = "Нельзя закрыть шлагбаум: на выезде транспорт.";
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditDevices))]
     private void SaveConnection()
     {
         ErrorMessage = InfoMessage = "";
+        if (!CanEditDevices)
+        {
+            ErrorMessage = "Недостаточно прав для изменения параметров подключения.";
+            return;
+        }
+
         if (!int.TryParse(PlcRack, NumberStyles.None, CultureInfo.InvariantCulture, out var rack) || rack > 7
             || !int.TryParse(PlcSlot, NumberStyles.None, CultureInfo.InvariantCulture, out var slot) || slot > 31)
         {
@@ -177,7 +196,7 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
 
     private void PushSimulation(Action<ISimulationControl> change)
     {
-        if (_simulation is not null && !_syncingSimulation)
+        if (_simulation is not null && !_syncingSimulation && CanEditDevices)
         {
             change(_simulation);
         }
@@ -202,6 +221,16 @@ public sealed partial class DevicesViewModel : PageViewModel, IDisposable
             _syncingSimulation = false;
         }
     }
+
+    private void OnUserChanged(object? sender, EventArgs e) => _ui.Post(() =>
+    {
+        OnPropertyChanged(nameof(CanControlBarrier));
+        OnPropertyChanged(nameof(CanEditDevices));
+        OpenBarrierCommand.NotifyCanExecuteChanged();
+        CloseBarrierCommand.NotifyCanExecuteChanged();
+        SaveConnectionCommand.NotifyCanExecuteChanged();
+        SyncSimulation(); // undo any switch flipped without permission
+    });
 
     private void OnSessionChanged(object? sender, SessionSnapshot s) => _ui.Post(() => Apply(s));
 

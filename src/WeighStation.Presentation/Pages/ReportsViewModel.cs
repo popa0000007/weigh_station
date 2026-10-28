@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WeighStation.Core;
 using WeighStation.Core.Abstractions;
+using WeighStation.Core.Security;
 using WeighStation.Presentation.Services;
 
 namespace WeighStation.Presentation.Pages;
@@ -18,6 +19,7 @@ public sealed partial class ReportsViewModel : PageViewModel
     private readonly IWeighingRepository _repository;
     private readonly IDialogService _dialogs;
     private readonly TimeProvider _time;
+    private readonly CurrentUser _user;
     private Report? _report;
 
     [ObservableProperty] private DateTime? _dateFrom;
@@ -32,11 +34,13 @@ public sealed partial class ReportsViewModel : PageViewModel
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     private bool _hasRows;
 
-    public ReportsViewModel(IWeighingRepository repository, IDialogService dialogs, TimeProvider time)
+    public ReportsViewModel(IWeighingRepository repository, IDialogService dialogs, CurrentUser user, TimeProvider time)
     {
         _repository = repository;
         _dialogs = dialogs;
+        _user = user;
         _time = time;
+        _user.Changed += (_, _) => ExportCommand.NotifyCanExecuteChanged();
 
         GroupingOptions =
         [
@@ -55,6 +59,8 @@ public sealed partial class ReportsViewModel : PageViewModel
     public override string Title => "Отчёты";
 
     public override string IconData => "M5 20V10M12 20V4M19 20v-7";
+
+    public override Permission Required => Permission.ViewReports;
 
     public IReadOnlyList<GroupingOption> GroupingOptions { get; }
 
@@ -103,11 +109,13 @@ public sealed partial class ReportsViewModel : PageViewModel
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasRows))]
+    private bool CanExport => HasRows && _user.Can(Permission.ExportData);
+
+    [RelayCommand(CanExecute = nameof(CanExport))]
     private void Export()
     {
         ErrorMessage = InfoMessage = "";
-        if (_report is null)
+        if (_report is null || !_user.Can(Permission.ExportData))
         {
             return;
         }

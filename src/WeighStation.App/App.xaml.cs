@@ -3,11 +3,14 @@ using System.Windows;
 using System.Windows.Threading;
 using WeighStation.App.Services;
 using WeighStation.Core;
-using WeighStation.Core.Models;
+using WeighStation.Core.Import;
+using WeighStation.Core.Security;
+using WeighStation.Infrastructure.Import;
 using WeighStation.Infrastructure.Persistence;
 using WeighStation.Infrastructure.Simulation;
 using WeighStation.Presentation;
 using WeighStation.Presentation.Pages;
+using WeighStation.Presentation.Security;
 
 namespace WeighStation.App;
 
@@ -21,6 +24,8 @@ public partial class App : Application
     private WeighingSession? _session;
     private ShellViewModel? _shell;
     private DispatcherTimer? _timer;
+    private UserService? _users;
+    private CurrentUser? _currentUser;
     private Task _hardware = Task.CompletedTask;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -37,6 +42,9 @@ public partial class App : Application
             return;
         }
 
+        // The application ends when we say so (login cancelled, main window closed), not when a window closes.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         // ---- Composition root: the only place that knows which concrete classes are used. ----
         var db = new SqliteDatabase(Path.Combine(DataDir, "weighings.db"));
         var journal = new SqliteWeighingRepository(db);
@@ -44,6 +52,9 @@ public partial class App : Application
         var companies = new SqliteCompanyStore(db);
         var cargos = new SqliteCargoStore(db);
         var drivers = new SqliteDriverStore(db);
+        var audit = new SqliteAuditLog(db, TimeProvider.System);
+        _users = new UserService(new SqliteUserStore(db), new Pbkdf2PasswordHasher(), audit, TimeProvider.System);
+        _currentUser = new CurrentUser();
 
         // To work with real equipment replace this with implementations of IScale, IPlateRecognizer, IPlatformIo
         // and IDeviceMonitor (see README). ISimulationControl is then null and the simulation panel disappears.
@@ -51,25 +62,40 @@ public partial class App : Application
 
         _session = new WeighingSession(
             new WeighingOptions(), hardware, hardware, hardware, journal, new ReferenceTareProvider(journal, vehicles));
-        var settings = new SettingsService(new JsonSettingsStore(Path.Combine(DataDir, "settings.json")), _session, Environment.UserName);
+        var settings = new SettingsService(new JsonSettingsStore(Path.Combine(DataDir, "settings.json")), _session);
 
         var ui = new WpfUiContext(Dispatcher);
-        var dialogs = new WpfDialogService();
+        var dialogs = new WpfDialogService(_users, _currentUser);
         var learner = new ReferenceLearner(vehicles, companies, cargos, drivers);
 
         PageViewModel[] pages =
         [
-            new WeighingViewModel(_session, journal, vehicles, companies, cargos, drivers, learner, settings, ui),
-            new JournalViewModel(journal, dialogs, new TicketPrinter(), settings, TimeProvider.System),
-            new ReferencesViewModel(vehicles, companies, cargos, drivers, dialogs),
-            new ReportsViewModel(journal, dialogs, TimeProvider.System),
-            new DevicesViewModel(_session, hardware, hardware, settings, dialogs, ui),
-            new SettingsViewModel(settings, db, dialogs, TimeProvider.System),
+            new WeighingViewModel(_session, journal, vehicles, companies, cargos, drivers, learner, _currentUser, ui),
+            new JournalViewModel(journal, dialogs, new TicketPrinter(), _currentUser, TimeProvider.System),
+            new ReferencesViewModel(vehicles, companies, cargos, drivers, dialogs, _currentUser),
+            new ReportsViewModel(journal, dialogs, _currentUser, TimeProvider.System),
+            new DevicesViewModel(_session, hardware, hardware, settings, _currentUser, dialogs, ui),
+            new ImportViewModel(
+                new ImportService(vehicles, companies, cargos, drivers, journal, audit, TimeProvider.System),
+                new FileTableReader(), dialogs, _currentUser, TimeProvider.System),
+            new UsersViewModel(_users, audit, _currentUser, dialogs),
+            new SettingsViewModel(settings, db, dialogs, _currentUser, TimeProvider.System),
         ];
-        _shell = new ShellViewModel(pages, _session, hardware, settings, TimeProvider.System, ui);
+        _shell = new ShellViewModel(pages, _session, hardware, _currentUser, _users, dialogs, TimeProvider.System, ui);
+
+        // Hardware runs from the start: trucks may arrive while the login window is open.
+        _hardware = hardware.RunAsync(_shutdown.Token);
+
+        if (!ShowLogin())
+        {
+            Shutdown();
+            return;
+        }
 
         var window = new MainWindow { DataContext = _shell };
+        window.Closed += (_, _) => Shutdown();
         MainWindow = window;
+        _shell.LoggedOut += (_, _) => OnLoggedOut(window);
         window.Show();
         _ = _shell.StartAsync();
 
@@ -77,8 +103,23 @@ public partial class App : Application
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => _shell.Tick();
         _timer.Start();
+    }
 
-        _hardware = hardware.RunAsync(_shutdown.Token);
+    private bool ShowLogin() =>
+        new LoginWindow(new LoginViewModel(_users!, _currentUser!)).ShowDialog() == true;
+
+    /// <summary>After "Выйти": hide the main window, ask for credentials again, bring the window back for whoever signs in.</summary>
+    private void OnLoggedOut(Window main)
+    {
+        main.Hide();
+        if (ShowLogin())
+        {
+            main.Show();
+        }
+        else
+        {
+            Shutdown();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

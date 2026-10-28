@@ -92,6 +92,18 @@ public static class Csv
         sb.Append("\r\n");
     }
 
-    private static string Escape(string cell) =>
-        cell.IndexOfAny([';', '"', '\r', '\n']) >= 0 ? "\"" + cell.Replace("\"", "\"\"") + "\"" : cell;
+    private static string Escape(string cell)
+    {
+        // CSV injection: a text cell starting with = + - @ is run as a formula when the file is opened in Excel.
+        // Imported data comes from outside, so such cells get a leading apostrophe (shown by Excel as plain text).
+        if (cell.Length > 0 && cell[0] is '=' or '+' or '-' or '@' or '\t' or '\r' && !IsNumber(cell))
+        {
+            cell = "'" + cell;
+        }
+
+        return cell.IndexOfAny([';', '"', '\r', '\n']) >= 0 ? "\"" + cell.Replace("\"", "\"\"") + "\"" : cell;
+    }
+
+    private static bool IsNumber(string cell) =>
+        double.TryParse(cell, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
 }

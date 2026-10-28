@@ -84,6 +84,18 @@ internal sealed class FakeRepository : IWeighingRepository, ITareProvider
         return Task.CompletedTask;
     }
 
+    public Task<int> ImportAsync(IReadOnlyList<(Weighing Weighing, AuditEntry Entry)> items, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        foreach (var (w, entry) in items)
+        {
+            var stored = w with { Id = Stored.Count + 1 };
+            Stored.Add(stored);
+            History[stored.Id] = [entry];
+        }
+
+        return Task.FromResult(items.Count);
+    }
+
     public Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(long id, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<AuditEntry>>(History.TryGetValue(id, out var h) ? h : []);
 

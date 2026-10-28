@@ -2,8 +2,6 @@ namespace WeighStation.Core;
 
 public sealed record AppSettings
 {
-    /// <summary>Shown in the journal history. Empty means "use the Windows user name".</summary>
-    public string OperatorName { get; init; } = "";
     public WeighingOptions Weighing { get; init; } = new();
     public DeviceSettings Devices { get; init; } = new();
 }

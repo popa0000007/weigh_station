@@ -23,6 +23,52 @@ public sealed class SqliteWeighingRepository(SqliteDatabase db) : IWeighingRepos
                 ($time, $plate, $trailer, $driver, $counterparty, $cargo, $kind, $gross, $tare, $net, $status, $operator);
             SELECT last_insert_rowid();
             """;
+        Bind(cmd, w);
+        var id = (long)(await cmd.ExecuteScalarAsync(ct))!;
+
+        foreach (var entry in history)
+        {
+            await InsertHistoryAsync(conn, tx, id, entry, ct);
+        }
+
+        await tx.CommitAsync(ct);
+        return w with { Id = id, Plate = PlateNumber.Normalize(w.Plate) };
+    }
+
+    public async Task<int> ImportAsync(
+        IReadOnlyList<(Weighing Weighing, AuditEntry Entry)> items, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        await using var conn = await db.OpenAsync(ct);
+        // All or nothing: a half-imported file would be very hard to clean up.
+        await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync(ct);
+        var done = 0;
+        foreach (var (w, entry) in items)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = """
+                INSERT INTO weighings
+                    (time, plate, trailer, driver, counterparty, cargo, kind, gross_kg, tare_kg, net_kg, status, operator)
+                VALUES
+                    ($time, $plate, $trailer, $driver, $counterparty, $cargo, $kind, $gross, $tare, $net, $status, $operator);
+                SELECT last_insert_rowid();
+                """;
+            Bind(cmd, w);
+            var id = (long)(await cmd.ExecuteScalarAsync(ct))!;
+            await InsertHistoryAsync(conn, tx, id, entry, ct);
+            if (++done % 500 == 0)
+            {
+                progress?.Report(done);
+            }
+        }
+
+        await tx.CommitAsync(ct);
+        progress?.Report(done);
+        return done;
+    }
+
+    private static void Bind(SqliteCommand cmd, Weighing w)
+    {
         cmd.Parameters.AddWithValue("$time", w.Time.ToUnixTimeMilliseconds());
         cmd.Parameters.AddWithValue("$plate", PlateNumber.Normalize(w.Plate));
         cmd.Parameters.AddWithValue("$trailer", (object?)w.Trailer ?? DBNull.Value);
@@ -35,15 +81,6 @@ public sealed class SqliteWeighingRepository(SqliteDatabase db) : IWeighingRepos
         cmd.Parameters.AddWithValue("$net", (object?)w.NetKg ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$status", (int)w.Status);
         cmd.Parameters.AddWithValue("$operator", (object?)w.Operator ?? DBNull.Value);
-        var id = (long)(await cmd.ExecuteScalarAsync(ct))!;
-
-        foreach (var entry in history)
-        {
-            await InsertHistoryAsync(conn, tx, id, entry, ct);
-        }
-
-        await tx.CommitAsync(ct);
-        return w with { Id = id, Plate = PlateNumber.Normalize(w.Plate) };
     }
 
     public async Task<IReadOnlyList<Weighing>> GetRecentAsync(int count, CancellationToken ct = default) =>

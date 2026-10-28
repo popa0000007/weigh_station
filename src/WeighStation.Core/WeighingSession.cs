@@ -163,7 +163,8 @@ public sealed class WeighingSession : IDisposable
 
             _capturing = true;
             var details = _details;
-            var user = details.Operator ?? "";
+            // Nobody signed in means the unattended automatic mode.
+            var user = details.Operator ?? "Автомат";
             draft = new Weighing
             {
                 Time = _clock(),

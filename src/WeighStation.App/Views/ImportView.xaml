@@ -1,0 +1,127 @@
+<UserControl x:Class="WeighStation.App.Views.ImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:WeighStation.Presentation.Pages;assembly=WeighStation.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:ImportViewModel}"
+             d:DesignWidth="1300" d:DesignHeight="900">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20,16">
+            <TextBlock Text="Импорт данных" Style="{StaticResource H1}" />
+            <TextBlock Text="Перенос справочников и истории взвешиваний из Excel или CSV. Ничего не записывается, пока вы не нажмёте «Импортировать»."
+                       Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,12" />
+
+            <!-- Step 1: what and from where -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="1. Что загружаем" Style="{StaticResource H2}" />
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="280" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <TextBlock Text="Раздел" Style="{StaticResource Caption}" Margin="0,0,0,3" />
+                            <ComboBox ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKind}" DisplayMemberPath="Title" AutomationProperties.Name="Раздел для импорта" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding KindHelp}" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Bottom" />
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Command="{Binding ChooseFileCommand}" Content="Выбрать файл…" Style="{StaticResource PrimaryButton}" Padding="20,0" Margin="0,0,8,0" />
+                        <Button Command="{Binding SaveTemplateCommand}" Content="Скачать шаблон" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" Margin="0,10,0,0" Visibility="{Binding HasFile, Converter={StaticResource BoolToVisible}}" />
+                    <TextBlock Text="Поддерживаются .xlsx, .xls и .csv. Первая строка файла — заголовки колонок." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+                    <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Visibility="{Binding HasFile, Converter={StaticResource BoolToVisible}}">
+
+                <!-- Step 2: how columns map to fields -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="2. Соответствие колонок" Style="{StaticResource H2}" />
+                        <TextBlock Text="Колонки подобраны по названиям. Если что-то угадано неверно — выберите нужную колонку. Поля со звёздочкой обязательны."
+                                   Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,8" />
+                        <ItemsControl ItemsSource="{Binding Mappings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260" />
+                                            <ColumnDefinition Width="300" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" DisplayMemberPath="Name"
+                                                  AutomationProperties.Name="{Binding Title}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Hint}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <StackPanel Margin="0,0,24,0" Width="200" Visibility="{Binding HasMasses, Converter={StaticResource BoolToVisible}}">
+                                <TextBlock Text="Масса в файле указана в" Style="{StaticResource Caption}" Margin="0,0,0,3" />
+                                <ComboBox ItemsSource="{Binding MassUnitOptions}" SelectedItem="{Binding SelectedMassUnit}" DisplayMemberPath="Title" AutomationProperties.Name="Единица массы" />
+                            </StackPanel>
+                            <CheckBox Content="Дополнять уже существующие записи данными из файла" IsChecked="{Binding UpdateExisting}" VerticalAlignment="Bottom" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Step 3: preview and go -->
+                <Border Style="{StaticResource Card}" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="3. Проверка и загрузка" Style="{StaticResource H2}" />
+                        <TextBlock Text="{Binding Summary}" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                            <Button Command="{Binding ImportCommand}" Content="Импортировать" Style="{StaticResource PrimaryButton}" Padding="28,0" Margin="0,0,8,0" />
+                            <Button Command="{Binding SaveProblemsCommand}" Content="Сохранить строки с проблемами…" Margin="0,0,16,0" />
+                            <CheckBox Content="Показывать только проблемные и пропущенные" IsChecked="{Binding ShowProblemsOnly}" Margin="0" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="{Binding ProgressMax}" Style="{StaticResource SlimBar}" Margin="0,0,0,10"
+                                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" />
+
+                        <DataGrid ItemsSource="{Binding Preview}" MaxHeight="420" AutomationProperties.Name="Предпросмотр импорта">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Строка" Binding="{Binding Row}" Width="70" />
+                                <DataGridTextColumn Header="Что будет" Binding="{Binding Action}" Width="110" />
+                                <DataGridTextColumn Header="Данные" Binding="{Binding Summary}" Width="2*" />
+                                <DataGridTemplateColumn Header="Замечание" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource Muted}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource Warn}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="{Binding PreviewNote}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

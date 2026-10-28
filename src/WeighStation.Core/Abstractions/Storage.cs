@@ -33,6 +33,9 @@ public interface IWeighingRepository
     Task CancelAsync(long id, AuditEntry entry, CancellationToken ct = default);
 
     Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(long id, CancellationToken ct = default);
+
+    /// <summary>Adds historical weighings (with one history line each) in a single transaction. Returns how many were added.</summary>
+    Task<int> ImportAsync(IReadOnlyList<(Weighing Weighing, AuditEntry Entry)> items, IProgress<int>? progress = null, CancellationToken ct = default);
 }
 
 public interface ITareProvider
@@ -49,6 +52,12 @@ public interface IReferenceStore<T> where T : class
     Task<long> SaveAsync(T item, CancellationToken ct = default);
 
     Task DeleteAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Inserts (<c>Id == 0</c>) or updates many items in one transaction: all or nothing, and one pass instead of one
+    /// round trip per item. The caller guarantees the items don't clash with each other or with other records.
+    /// </summary>
+    Task BulkSaveAsync(IReadOnlyList<T> items, IProgress<int>? progress = null, CancellationToken ct = default);
 }
 
 public interface IVehicleStore : IReferenceStore<Vehicle>
