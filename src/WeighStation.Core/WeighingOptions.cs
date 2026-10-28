@@ -12,4 +12,6 @@ public sealed record WeighingOptions
     public double MinPlateConfidence { get; init; } = 0.8;
     public bool AutoCapture { get; init; }
     public TimeSpan AutoCaptureDelay { get; init; } = TimeSpan.FromSeconds(5);
+    /// <summary>No sample for this long means the scale (or the link to it) is down: capturing is blocked.</summary>
+    public TimeSpan ScaleTimeout { get; init; } = TimeSpan.FromSeconds(3);
 }

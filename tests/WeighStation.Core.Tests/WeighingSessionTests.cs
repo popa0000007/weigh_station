@@ -73,7 +73,7 @@ public class WeighingSessionTests
 
         _session.SetManualPlate(" в777вв 77 ");
         Assert.Equal(SessionState.ReadyToCapture, _session.Snapshot.State);
-        Assert.Equal("В777ВВ 77", _session.Snapshot.Plate);
+        Assert.Equal("В777ВВ77", _session.Snapshot.Plate);
     }
 
     [Fact]
@@ -202,10 +202,20 @@ public class WeighingSessionTests
     }
 
     [Fact]
-    public void Vehicle_rolling_off_before_capture_returns_to_entering_with_green_light()
+    public void Vehicle_rolling_off_before_capture_ends_the_cycle_with_green_light()
     {
         TruckOnPlatformSettled();
         _dev.Sensors(entry: false, onPlatform: false, exit: true);
+        Assert.Equal(SessionState.Idle, _session.Snapshot.State);
+        Assert.Equal(TrafficLight.Green, _dev.Light);
+        Assert.Null(_session.Snapshot.Plate);
+    }
+
+    [Fact]
+    public void Vehicle_backing_off_the_platform_but_still_at_the_entry_stays_in_entering()
+    {
+        TruckOnPlatformSettled();
+        _dev.Sensors(entry: true);
         Assert.Equal(SessionState.Entering, _session.Snapshot.State);
         Assert.Equal(TrafficLight.Green, _dev.Light);
     }

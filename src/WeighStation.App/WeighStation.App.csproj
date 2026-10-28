@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WeighStation.Core\WeighStation.Core.csproj" />
+    <ProjectReference Include="..\WeighStation.Presentation\WeighStation.Presentation.csproj" />
     <ProjectReference Include="..\WeighStation.Infrastructure\WeighStation.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
