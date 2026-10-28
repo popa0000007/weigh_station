@@ -1,0 +1,27 @@
+name: Build Windows exe
+
+on:
+  push:
+    branches: [release/exe-build]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test
+        run: dotnet test tests/WeighStation.Core.Tests --configuration Release
+      - name: Publish self-contained exe
+        run: dotnet publish src/WeighStation.App -p:PublishProfile=win-x64
+      - name: Show result
+        shell: pwsh
+        run: Get-ChildItem src/WeighStation.App/bin/publish/win-x64 | Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WeighStation-win-x64
+          path: src/WeighStation.App/bin/publish/win-x64/WeighStation.exe
+          if-no-files-found: error

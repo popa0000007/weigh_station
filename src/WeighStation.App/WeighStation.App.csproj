@@ -5,6 +5,9 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>WeighStation</AssemblyName>
     <RootNamespace>WeighStation.App</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>АвтоВесы</Product>
+    <Company>АвтоВесы</Company>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\WeighStation.Core\WeighStation.Core.csproj" />
