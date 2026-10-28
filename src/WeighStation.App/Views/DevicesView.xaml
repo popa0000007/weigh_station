@@ -1,0 +1,192 @@
+<UserControl x:Class="WeighStation.App.Views.DevicesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:WeighStation.Presentation.Pages;assembly=WeighStation.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:DevicesViewModel}"
+             d:DesignWidth="1300" d:DesignHeight="800">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20,16">
+            <TextBlock Text="Устройства" Style="{StaticResource H1}" Margin="0,0,0,12" />
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                    <ColumnDefinition Width="1*" MinWidth="360" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Status + live signals -->
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Состояние оборудования" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                            <ItemsControl ItemsSource="{Binding Devices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,5">
+                                            <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="{Binding StatusText}" />
+                                                        <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource Ok}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{StaticResource DangerDot}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                                <Setter Property="Fill" Value="{StaticResource OkDot}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Сигналы в реальном времени" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Вес" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock Text="{Binding WeightText}" Style="{StaticResource Mono}" FontWeight="Bold" FontSize="18" />
+                                    <TextBlock Text=" кг" Foreground="{StaticResource Muted}" VerticalAlignment="Bottom" />
+                                    <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="нестабилен" />
+                                                <Setter Property="Foreground" Value="{StaticResource Muted}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ScaleStable}" Value="True">
+                                                        <Setter Property="Text" Value="стабилен" />
+                                                        <Setter Property="Foreground" Value="{StaticResource Ok}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="1" Text="Датчик въезда" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,4">
+                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="свободен" /><Style.Triggers><DataTrigger Binding="{Binding EntryOccupied}" Value="True"><Setter Property="Text" Value="ЗАНЯТ" /><Setter Property="FontWeight" Value="Bold" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Row="2" Text="Платформа" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,4">
+                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="свободна" /><Style.Triggers><DataTrigger Binding="{Binding PlatformOccupied}" Value="True"><Setter Property="Text" Value="ТС ЦЕЛИКОМ" /><Setter Property="FontWeight" Value="Bold" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Row="3" Text="Датчик выезда" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,4">
+                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="свободен" /><Style.Triggers><DataTrigger Binding="{Binding ExitOccupied}" Value="True"><Setter Property="Text" Value="ЗАНЯТ" /><Setter Property="FontWeight" Value="Bold" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Row="4" Text="Светофор" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                                    <Ellipse Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource OkDot}" /><Style.Triggers><DataTrigger Binding="{Binding LightIsRed}" Value="True"><Setter Property="Fill" Value="{StaticResource DangerDot}" /></DataTrigger></Style.Triggers></Style></Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding LightText}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="5" Text="Шлагбаум" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding BarrierText}" Margin="0,4" />
+
+                                <TextBlock Grid.Row="6" Text="Состояние" Style="{StaticResource Caption}" Margin="0,4,24,4" />
+                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding StateText}" Margin="0,4" TextWrapping="Wrap" />
+                            </Grid>
+
+                            <TextBlock Text="Ручное управление" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" FontWeight="SemiBold" />
+                            <UniformGrid Columns="2">
+                                <Button Command="{Binding OpenBarrierCommand}" Content="Открыть шлагбаум" Margin="0,0,4,0" />
+                                <Button Command="{Binding CloseBarrierCommand}" Content="Закрыть шлагбаум" Margin="4,0,0,0" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Simulation + connection settings -->
+                <StackPanel Grid.Column="1">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16" Visibility="{Binding IsSimulation, Converter={StaticResource BoolToVisible}}">
+                        <StackPanel>
+                            <TextBlock Text="Режим симуляции" Style="{StaticResource H2}" />
+                            <TextBlock Text="Оборудование сейчас имитируется программой. Отключите весы или камеры, чтобы проверить, как приложение реагирует на отказ."
+                                       Style="{StaticResource Caption}" Margin="0,4,0,6" />
+                            <CheckBox Content="Заезжают машины автоматически" IsChecked="{Binding SimAutoTrucks}" />
+                            <CheckBox Content="Терминал весов подключён" IsChecked="{Binding SimScaleConnected}" />
+                            <CheckBox Content="Камеры подключены" IsChecked="{Binding SimCamerasConnected}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Параметры подключения" Style="{StaticResource H2}" />
+                            <TextBlock Text="Сохраняются для будущих драйверов оборудования; в режиме симуляции не используются."
+                                       Style="{StaticResource Caption}" Margin="0,4,0,0" />
+
+                            <TextBlock Text="ПЛК Siemens: адрес" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding PlcHost, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Адрес ПЛК" />
+                            <UniformGrid Columns="2">
+                                <StackPanel Margin="0,0,6,0">
+                                    <TextBlock Text="Rack" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Text="{Binding PlcRack, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Rack" />
+                                </StackPanel>
+                                <StackPanel Margin="6,0,0,0">
+                                    <TextBlock Text="Slot" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Text="{Binding PlcSlot, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Slot" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="Весовой терминал: адрес и порт" Style="{StaticResource FieldLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="100" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding ScaleHost, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" AutomationProperties.Name="Адрес терминала" />
+                                <TextBox Grid.Column="1" Text="{Binding ScalePort, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Порт терминала" />
+                            </Grid>
+
+                            <TextBlock Text="Камера 1: адрес потока" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Camera1Url, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Адрес камеры 1" />
+                            <TextBlock Text="Камера 2: адрес потока" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Camera2Url, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Адрес камеры 2" />
+
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+                            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" />
+                            <Button Command="{Binding SaveConnectionCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0" HorizontalAlignment="Left" Padding="24,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

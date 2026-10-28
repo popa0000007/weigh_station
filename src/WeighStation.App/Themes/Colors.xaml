@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Palette. Text/background pairs below were chosen for at least 4.5:1 contrast. -->
+    <Color x:Key="AccentColor">#0F6CBD</Color>
+    <SolidColorBrush x:Key="Accent" Color="#0F6CBD" />
+    <SolidColorBrush x:Key="AccentDark" Color="#0A4F85" />
+    <SolidColorBrush x:Key="AccentSoft" Color="#EAF3FB" />
+    <SolidColorBrush x:Key="Window" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="Rail" Color="#EDEDED" />
+    <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SurfaceAlt" Color="#F6F6F6" />
+    <SolidColorBrush x:Key="Line" Color="#E5E5E5" />
+    <SolidColorBrush x:Key="InputLine" Color="#8A8A8A" />
+    <SolidColorBrush x:Key="Text" Color="#1B1B1B" />
+    <SolidColorBrush x:Key="Muted" Color="#4F4F4F" />
+    <SolidColorBrush x:Key="Ok" Color="#0B5A0B" />
+    <SolidColorBrush x:Key="OkBack" Color="#DFF6DD" />
+    <SolidColorBrush x:Key="OkDot" Color="#2E9E4F" />
+    <SolidColorBrush x:Key="Warn" Color="#7A4A00" />
+    <SolidColorBrush x:Key="WarnBack" Color="#FFF1CC" />
+    <SolidColorBrush x:Key="Danger" Color="#9D1C10" />
+    <SolidColorBrush x:Key="DangerBack" Color="#FDE7E9" />
+    <SolidColorBrush x:Key="DangerDot" Color="#E5483A" />
+    <SolidColorBrush x:Key="Info" Color="#0A3F6B" />
+    <SolidColorBrush x:Key="InfoBack" Color="#E5F1FB" />
+    <SolidColorBrush x:Key="InfoLine" Color="#B5D4EE" />
+    <SolidColorBrush x:Key="Camera" Color="#1D2530" />
+    <SolidColorBrush x:Key="CameraText" Color="#C9D1D9" />
+</ResourceDictionary>

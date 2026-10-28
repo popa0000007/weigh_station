@@ -39,7 +39,7 @@ public sealed partial class SettingsViewModel : PageViewModel
 
     public override string Title => "Настройки";
 
-    public override string IconData => "M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v3M12 19v3M2 12h3M19 12h3";
+    public override string IconData => "M12 8 A4 4 0 1 0 12 16 A4 4 0 1 0 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22";
 
     public string DatabasePath => _backup.DatabasePath;
 

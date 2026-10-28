@@ -1,0 +1,87 @@
+<UserControl x:Class="WeighStation.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:WeighStation.Presentation.Pages;assembly=WeighStation.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+             d:DesignWidth="1300" d:DesignHeight="800">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20,16" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Настройки" Style="{StaticResource H1}" Margin="0,0,0,12" />
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Правила взвешивания" Style="{StaticResource H2}" />
+                    <TextBlock Text="Применяются сразу после сохранения. Идущий в этот момент цикл не прерывается."
+                               Style="{StaticResource Caption}" Margin="0,4,0,8" />
+
+                    <UniformGrid Columns="3">
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Минимальный вес, кг" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding MinWeightKg, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Минимальный вес" />
+                            <TextBlock Text="Меньше этого значения платформа считается пустой." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Margin="4,0">
+                            <TextBlock Text="Допуск стабильности, кг" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding ToleranceKg, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Допуск стабильности" />
+                            <TextBlock Text="Размах показаний, при котором вес считается устоявшимся." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Margin="8,0,0,0">
+                            <TextBlock Text="Время стабильности, с" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding WindowSeconds, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Время стабильности" />
+                            <TextBlock Text="Сколько секунд вес не должен выходить за допуск." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </UniformGrid>
+
+                    <CheckBox Content="Учитывать признак «стабильно» от весового терминала" IsChecked="{Binding RequireTerminalStable}" Margin="0,14,0,0" />
+                    <CheckBox Content="Требовать госномер для фиксации веса" IsChecked="{Binding RequirePlate}" />
+
+                    <UniformGrid Columns="3" Margin="0,4,0,0">
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Уверенность распознавания, %" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding MinConfidencePercent, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Уверенность распознавания" />
+                        </StackPanel>
+                        <StackPanel Margin="4,0">
+                            <TextBlock Text="Тайм-аут весов, с" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding ScaleTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Тайм-аут весов" />
+                            <TextBlock Text="Нет данных дольше этого времени — фиксация блокируется." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </UniformGrid>
+
+                    <CheckBox Content="Фиксировать вес автоматически" IsChecked="{Binding AutoCapture}" Margin="0,14,0,0" />
+                    <StackPanel Width="220" HorizontalAlignment="Left" IsEnabled="{Binding AutoCapture}">
+                        <TextBlock Text="Задержка автофиксации, с" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding AutoCaptureSeconds, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Задержка автофиксации" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Оператор" Style="{StaticResource H2}" />
+                    <TextBlock Text="Имя записывается в историю каждого взвешивания. Пусто — имя пользователя Windows." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                    <TextBox Text="{Binding OperatorName, UpdateSourceTrigger=PropertyChanged}" Width="320" HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.Name="Имя оператора" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="База данных" Style="{StaticResource H2}" />
+                    <TextBlock Text="{Binding DatabasePath}" Style="{StaticResource Mono}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Command="{Binding BackupCommand}" Content="Создать резервную копию…" Margin="0,0,8,0" />
+                        <Button Command="{Binding OpenDataFolderCommand}" Content="Открыть папку данных" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+            <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource InfoText}" />
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,24">
+                <Button Command="{Binding SaveCommand}" Content="Сохранить" Style="{StaticResource PrimaryButton}" Padding="28,0" Margin="0,0,8,0" />
+                <Button Command="{Binding ResetDefaultsCommand}" Content="Значения по умолчанию" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

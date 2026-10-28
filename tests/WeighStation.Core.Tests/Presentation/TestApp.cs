@@ -190,9 +190,9 @@ internal sealed class TestApp : IDisposable
     }
 
     /// <summary>Waits for fire-and-forget work (reference lookup, learning) started by view-model handlers.</summary>
-    public static async Task Eventually(Func<bool> condition, string because = "condition")
+    public static async Task Eventually(Func<bool> condition, string because = "condition", int timeoutMs = 2000)
     {
-        for (var i = 0; i < 200; i++)
+        for (var waited = 0; waited < timeoutMs; waited += 10)
         {
             if (condition())
             {
